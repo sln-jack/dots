@@ -10,7 +10,8 @@ starship init fish | .
 direnv hook fish | .
 
 alias ls="exa"
-alias ll="exa -lah"
+alias ll="exa -lh"
+alias lla="exa -lah"
 alias llt="exa -lah --sort time"
 alias lt="exa -lTh"
 
