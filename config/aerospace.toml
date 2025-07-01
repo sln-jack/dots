@@ -6,10 +6,10 @@ enable-normalization-opposite-orientation-for-nested-containers = false
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
 [mode.main.binding]
-    alt-h =  'focus --boundaries-action wrap-around-the-workspace left'
-    alt-j =  'focus --boundaries-action wrap-around-the-workspace down'
-    alt-k =  'focus --boundaries-action wrap-around-the-workspace up'
-    alt-l =  'focus --boundaries-action wrap-around-the-workspace right'
+    ctrl-alt-h =  'focus --boundaries-action wrap-around-the-workspace left'
+    ctrl-alt-j =  'focus --boundaries-action wrap-around-the-workspace down'
+    ctrl-alt-k =  'focus --boundaries-action wrap-around-the-workspace up'
+    ctrl-alt-l =  'focus --boundaries-action wrap-around-the-workspace right'
 
     alt-comma = 'focus-monitor prev'
     alt-period = 'focus-monitor next'
