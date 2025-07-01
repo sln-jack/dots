@@ -15,7 +15,7 @@ set -e XPC_FLAGS
 . ~/.nix-profile/lib/nix.fish
 
 # Setup PATH
-set -x PATH ~/.cargo/bin /opt/homebrew/bin $fish_user_paths /usr/local/bin /usr/bin /sbin /bin
+set -x PATH ~/.cargo/bin /opt/homebrew/bin $fish_user_paths ~/.local/bin /usr/local/bin /usr/bin /sbin /bin
 
 # Setup Secretive ssh agent
 set -x SSH_AUTH_SOCK /Users/foltz/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
