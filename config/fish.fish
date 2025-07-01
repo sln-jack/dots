@@ -5,7 +5,8 @@ bind --erase --preset alt-e
 set -x TERM xterm-256color
 set -x VISUAL nvim
 
-# Direnv
+# Hooks
+starship init fish | .
 direnv hook fish | .
 
 alias ls="exa"

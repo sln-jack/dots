@@ -48,7 +48,7 @@ rustup default | grep -q nightly || rustup default nightly
 # Install config symlinks
 install() {
     SRC=$1
-    DST=~/.config/${2:-$SRC}
+    DST=~/.config/$2
     echo "$SRC -> $DST"
     mkdir -p $(dirname $DST)
     ln -sf $PWD/config/$SRC $DST
@@ -58,7 +58,8 @@ install fish.fish fish/config.fish
 install tmux.conf tmux/tmux.conf
 install gitconfig git/config
 install gitignore git/ignore
-install direnv.toml
+install direnv.toml direnv.toml
+install starship.toml starship.toml
 
 if $MACOS; then
     install fish_macos.fish fish/conf.d/macos.fish
