@@ -42,6 +42,7 @@
           git           # Git
           git-lfs       # Git large file support
           gh            # Github CLI
+          gnupg         # GPG keys
 
           # Text
           ripgrep  # Find text
