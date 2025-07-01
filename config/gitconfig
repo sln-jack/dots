@@ -1,0 +1,85 @@
+[user]
+    name = "Jack Foltz"
+    email = "jack@foltz.io"
+
+[init]
+    defaultBranch = main
+
+[diff]
+    # Better algorithm
+    algorithm = histogram
+
+    # Display moved lines in a different color
+    colorMoved = plain
+
+    # i/w/c prefixes for index/workdir/commit instead of a/b
+    mnemonicPrefix = true
+
+    # detect when files are renamed
+    renames = true
+
+[push]
+    # No more --set-upstream dance
+    autoSetupRemote = true
+
+    # Auto push tags
+    followTags = true
+
+[fetch]
+    # Always fetch all remote branches
+    all = true
+
+    # Delete origin/blah if blah is deleted on the server
+    prune = true
+    pruneTags = true
+
+[commit]
+    # Add diffs as context to the interactive git commit message composer
+    verbose = true
+
+[rerere]
+    # Automatically reapply resolutions to rebase conflicts
+    enabled = true
+    autoupdate = true
+
+[core]
+    # Global personal gitignore
+    excludesfile = ~/.git/ignore
+
+[rebase]
+    # Automatically handle --fixup commits in `git rebase -i`
+    autoSquash = true
+
+    # Auto stash and pop changes when rebasing
+    autoStash = true
+
+    # Update any branches also pointing to the commit being rebased
+    updateRefs = true
+
+[pull]
+    # Auto rebase when pulling
+    rebase = true
+
+[merge]
+    # Also show what the file looked like before either side changed anything
+    conflictstyle = zdiff3
+
+[advice]
+    # Remove help spam
+    statusHints = false
+
+# Better sorting for branches and tags
+[branch]
+    sort = -committerdate
+[tag]
+    sort = version:refname
+
+
+# Use `delta` for displaying diffs
+[core]
+    pager = delta
+[interactive]
+    diffFilter = delta --color-only
+[delta]
+    navigate = true
+    dark = true
