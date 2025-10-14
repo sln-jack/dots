@@ -11,21 +11,24 @@ MACOS=false
 NIX=false
 [[ "$(uname -s)" == "Darwin" ]] && MACOS=true
 [[ "$(uname -s)" == "Linux" ]]  && LINUX=true
-[[ -x "$(command -v nix)" ]] && NIX=true
+command -v nix >/dev/null && NIX=true
 
 echo "  Host: $HOST"
 $MACOS && echo "  OS: MacOS"
 $LINUX && echo "  OS: Linux"
-$NIX && echo "  Packages: Nix"
 
 #------ Bootstrap --------------------------------------------------------------------------------------------
 if $MACOS; then
     # Setup nix
-    if ! command -v nix >/dev/null; then
+    if ! $NIX; then
+        echo "  Nix: installing..."
         curl -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm --no-modify-profile
         . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+        echo "  Nix: OK"
+        NIX=true
+    else
+        echo "  Nix: OK"
     fi
-    NIX=true
 
     # Setup homebrew
     if ! command -v brew >/dev/null; then
@@ -54,6 +57,49 @@ if $MACOS; then
     if [ "$SHELL" == "/bin/zsh" ]; then
         sudo sh -c 'echo "$HOME/.nix-profile/bin/fish" >> /etc/shells'
         chsh -s "$HOME/.nix-profile/bin/fish"
+        echo -e "  Shell: please re-login to update"
+    else
+        echo "  Shell: fish"
+    fi
+fi
+if $LINUX; then
+    if ! $NIX; then
+        if command -v cargo >/dev/null; then
+            echo "  Nix: installing..."
+
+            cargo install nix-user-chroot
+            mkdir -p ~/.config/nix
+            mkdir -pm 0755 ~/.nix
+            ~/.cargo/bin/nix-user-chroot ~/.nix bash -c "curl -L https://nixos.org/nix/install | bash"
+
+            echo "extra-experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
+            echo "[ ! -d /nix ] && exec ~/.cargo/bin/nix-user-chroot ~/.nix bash -l" >> ~/.bashrc
+
+            echo -e "\nNix: please re-login to continue install"
+            exit 1
+        else
+            echo"  Nix: missing cargo"
+        fi
+    else
+        echo "  Nix: ok"
+    fi
+
+    # Install nix tools if not already
+    if ! command -v fish >/dev/null; then
+        nix profile install .#dots
+    fi
+    # Upgrade nix tools if flake.nix has changes
+    if ! git diff --quiet flake.nix; then
+        git add flake.nix
+        nix profile upgrade dots
+    fi
+
+    # Update shell
+    if [ "$SHELL" == "/bin/bash" ]; then
+        echo "[ ! -v NOFISH ] && exec fish" >> ~/.bashrc
+        echo -e "  Shell: please re-login to update"
+    else
+        echo "  Shell: fish"
     fi
 fi
 if $NIX; then
@@ -84,6 +130,9 @@ if $MACOS; then
     install ghostty.conf ghostty/config
     install neovide.toml neovide/config.toml
     install aerospace.toml aerospace/aerospace.toml
+fi
+if $LINUX; then
+    install fish_linux.fish fish/conf.d/linux.fish
 fi
 if $NIX; then
     install fish.fish fish/config.fish

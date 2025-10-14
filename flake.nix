@@ -104,6 +104,10 @@
         ];
 
       in {
+        packages.dots = pkgs.buildEnv {
+          name = "dots";
+          paths = common ++ libs;
+        };
         packages.dots-macos = pkgs.buildEnv {
           name = "dots-macos";
           paths = common ++ macos ++ libs;
