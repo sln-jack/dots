@@ -96,7 +96,9 @@ if $LINUX; then
 
     # Update shell
     if [ "$SHELL" == "/bin/bash" ]; then
-        echo "[ ! -v NOFISH ] && exec fish" >> ~/.bashrc
+        if ! grep -q "NOFISH" ~/.bashrc; then
+            echo "[ ! -v NOFISH ] && exec ~/.nix-profile/bin/fish" >> ~/.bashrc
+        fi
         echo -e "  Shell: please re-login to update"
     else
         echo "  Shell: fish"
