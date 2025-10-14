@@ -124,6 +124,7 @@ install gitconfig git/config
 install gitignore git/ignore
 install nvim/init.lua nvim/init.lua
 install nvim/lib.lua nvim/lua/lib.lua
+install fish.fish fish/config.fish
 
 if $MACOS; then
     install fish_macos.fish fish/conf.d/macos.fish
@@ -135,7 +136,6 @@ if $LINUX; then
     install fish_linux.fish fish/conf.d/linux.fish
 fi
 if $NIX; then
-    install fish.fish fish/config.fish
     install direnv.toml direnv.toml
     install starship.toml starship.toml
 fi
