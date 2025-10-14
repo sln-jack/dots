@@ -1,0 +1,9 @@
+Host OH-DEV-07
+    HostName OH-DEV-07.selini.tech
+Host TKY-DEV-10
+    HostName TKY-DEV-10.selini.tech
+
+Host github.com-foltik
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_gh

@@ -142,6 +142,8 @@ install nvim/lib.lua nvim/lua/lib.lua
 install nvim/setup.lua nvim/lua/setup.lua
 install nvim/framework.lua nvim/lua/framework.lua
 install fish.fish fish/config.fish
+install fish_selini.fish fish/conf.d/selini.fish
+install ssh_selini .ssh/config
 
 if $MACOS; then
     install keymap.plist ~/Library/LaunchAgents/keymap.plist
