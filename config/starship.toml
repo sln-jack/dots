@@ -2,7 +2,7 @@
 
 
 add_newline = false
-format = "$time $directory$git_branch$git_status$direnv$status$cmd_duration> "
+format = "$time $directory$git_branch$git_status$direnv$cmd_duration$status> "
 
 
 [time]
@@ -30,9 +30,9 @@ stashed    = "⚑"
 
 [direnv]
 disabled = false
-format = '[$allowed](bold red)'
-allowed_msg = ''
-not_allowed_msg = 'D'
+format = ' [$allowed](bold green)'
+allowed_msg = '@'
+not_allowed_msg = '🔒'
 
 [status]
 disabled = false
@@ -42,7 +42,7 @@ format = " \\[[$status]($style)\\]"
 min_time = 3_000 # 3sec
 format = ' [$duration](bold yellow)'
 show_notifications = true
-min_time_to_notify = 60_000 # 1min
+min_time_to_notify = 120_000 # 2min
 notification_timeout = 2_000
 
 # foltz@navi ~/c/dots (main) [1]> git remote -v

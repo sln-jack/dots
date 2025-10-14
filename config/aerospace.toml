@@ -16,7 +16,7 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
     alt-shift-comma = 'move-workspace-to-monitor prev'
     alt-shift-period = 'move-workspace-to-monitor next'
 
-    alt-leftSquareBracket = 'layout tiles vertical'
+    alt-leftSquareBracket = 'layout tiles horizontal'
     alt-rightSquareBracket = 'layout v_accordion'
 
     alt-shift-space = 'layout floating tiling' # 'floating toggle' in i3

@@ -25,8 +25,9 @@
           direnv    # Directory rc files
           eza       # Fancy ls
           tmux      # Terminal multiplexer
-          neovim    # Editor
           yazi      # File manager
+          neovim    # Editor
+          neovide   # Editor GUI
 
           # Toolchains
           rustup        # Rust toolchain manager
@@ -35,14 +36,14 @@
           cargo-expand  # Rust macro expander
           uv            # Python
           mise          # Generic toolchain manager
-          nil           # Nix language server
-          nixd          # Nix language server 2
           go            # Go
-          claude-code   # Anthropic coding agent
-          git           # Git
-          git-lfs       # Git large file support
-          gh            # Github CLI
-          gnupg         # GPG keys
+          gopls         # Go LSP
+          claude-code   # Slop
+
+          # LSP
+          lua-language-server
+          nil  # Nix
+          nixd # Nix but different
 
           # Text
           ripgrep  # Find text
@@ -54,27 +55,38 @@
           moar     # Fancy pager
           delta    # Fancy diffs
           tokei    # Count LoC
+          gnused   # Because the BSD one is weird
 
           # Measurement
           htop       # System metrics
+          btop       # Cooler system metrics
           gping      # Ping metrics
           hyperfine  # Command timing
           dust       # Disk usage
+          gnuplot    # Charts
+          nmap       # Port scanning
 
           # Media
           ffmpeg       # Video editing
+          mpv          # Video playback
           imagemagick  # Image editing
           yt-dlp       # YT/insta/etc downloader
           xh           # HTTP requests
           oha          # HTTP load tester
 
           # Utils
-          spacer  # Inactivity spacers
-          kondo   # Clean build artifacts
+          spacer       # Inactivity spacers
+          kondo        # Clean build artifacts
+          watch        # Watch stuff
+          rar          # I didn't pay for WinRAR
 
           # C stuff
+          ccache
+          ninja
+          cmake
           pkg-config
           openssl
+          util-linux  # setsid
         ];
 
         macos = pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs; []);

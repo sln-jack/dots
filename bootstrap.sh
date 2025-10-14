@@ -34,6 +34,7 @@ if $MACOS; then
     [ -d /Applications/Ghostty.app ]   || brew install --cask ghostty                    # Terminal
     [ -d /Applications/AeroSpace.app ] || brew install --cask nikitabobko/tap/aerospace  # Window manager
     [ -d /Applications/Zed.app ]       || brew install --cask zed                        # Editor
+    [ -d /Applications/Neovide.app ]   || brew install --cask neovide                    # Neovim GUI
 
     # Update shell
     if [ "$SHELL" == "/bin/zsh" ]; then
@@ -54,12 +55,16 @@ install() {
     ln -sf $PWD/config/$SRC $DST
 }
 
+install ghostty.conf ghostty/config
 install fish.fish fish/config.fish
 install tmux.conf tmux/tmux.conf
 install gitconfig git/config
 install gitignore git/ignore
 install direnv.toml direnv.toml
 install starship.toml starship.toml
+install neovide.toml neovide/config.toml
+install nvim/init.lua nvim/init.lua
+install nvim/lib.lua nvim/lua/lib.lua
 
 if $MACOS; then
     install fish_macos.fish fish/conf.d/macos.fish

@@ -1,0 +1,7 @@
+[font]
+normal = "Iosevka NFM"
+size = 14
+
+# Disable ligatures == != etc
+[font.features]
+"Iosevka NFM" = ["-calt"]

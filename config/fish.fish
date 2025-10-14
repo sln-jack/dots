@@ -22,9 +22,11 @@ abbr -a rsync rsync -Pavzr
 
 abbr -a cc cargo check
 abbr -a cb cargo build
-abbr -a cr cargo run --
 abbr -a cbr cargo build -r
-abbr -a cbr cargo run -r --
+abbr -a cr cargo run --
+abbr -a crb cargo run --bin 
+abbr -a crr cargo run -r --
+abbr -a crrb cargo run -r --bin
 
 abbr -a g git
 abbr -a gs git status
@@ -63,15 +65,23 @@ function reload
     end
 end
 
+function v
+    set args '.'
+    if test (count $argv) -gt 0
+        set args $argv
+    end
+    setsid neovide --no-vsync $args >/dev/null 2>&1 &
+end
+
 # Find process
 set ps_cols "pid,user,start,command"
 function pg
     ps x -o $ps_cols | head -n1
-    ps x -o $ps_cols | rg -v rg | rg $argv
+    ps x -o $ps_cols | rg -v "rg $argv" | rg $argv
 end
 # Kill process
 function pk
-    ps x | rg -v rg | rg $argv | awk '{print $1}' | xargs kill
+    ps x | rg -v "rg $argv" | rg $argv | awk '{print $1}' | xargs kill
 end
 
 # Fasd
@@ -87,3 +97,8 @@ function z
     test -z $dir && return
     test -d $dir && cd $dir
 end
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/foltz/.lmstudio/bin
+# End of LM Studio CLI section
+
