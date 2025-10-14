@@ -19,6 +19,9 @@ $LINUX && echo "  OS: Linux"
 
 #------ Bootstrap --------------------------------------------------------------------------------------------
 if $MACOS; then
+    defaults write -g InitialKeyRepeat -int 14
+    defaults write -g KeyRepeat -int 1
+
     # Setup nix
     if ! $NIX; then
         echo "  Nix: installing..."
