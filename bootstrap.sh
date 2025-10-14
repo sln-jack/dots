@@ -134,6 +134,8 @@ install gitignore git/ignore
 install nvim/init.lua nvim/init.lua
 install nvim/lib.lua nvim/lua/lib.lua
 install fish.fish fish/config.fish
+install fish_selini.fish fish/conf.d/selini.fish
+install ssh_selini .ssh/config
 
 if $MACOS; then
     install fish_macos.fish fish/conf.d/macos.fish
