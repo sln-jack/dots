@@ -2,13 +2,22 @@
 
 
 add_newline = false
-format = "$time $directory$git_branch$git_status$direnv$cmd_duration$status> "
+format = "$time $username$hostname$directory$git_branch$git_status$direnv$cmd_duration$status> "
 
 
 [time]
 disabled = false
 format = '[$time](white)'
 time_format = '%I:%M:%S%P'
+
+[username]
+show_always = false
+format = '[$user](white)@'
+
+[hostname]
+ssh_only = true
+format = '[$hostname](white):'
+trim_at = '.'
 
 [directory]
 format = "[$path]($style)"
