@@ -97,8 +97,3 @@ function z
     test -z $dir && return
     test -d $dir && cd $dir
 end
-
-# Added by LM Studio CLI (lms)
-set -gx PATH $PATH /Users/foltz/.lmstudio/bin
-# End of LM Studio CLI section
-
