@@ -619,6 +619,7 @@ function LangSupport()
     dependencies = {
       'folke/lazydev.nvim',
     },
+    build = 'cargo build --release',
     opts = {
       -- Shows function signatures when typing arguments
       signature = { enabled = true },
