@@ -241,6 +241,14 @@ local Keymaps = {
     bind('Edit Prev File', 'n', '<leader><tab>', '<cmd>edit #<cr>')
   
     -- Projects and dotfiles
+    bind('Edit TODO.md', 'n', '<leader>pt', ':vsplit ~/notes/TODO.md<cr>')
+    bind('Edit Note',    'n', '<leader>pn', function()
+      builtin.find_files {
+        prompt_title = 'Dotfiles',
+        cwd = vim.fn.expand "~/notes",
+      }
+    end)
+
     bind('Edit scratch',  'n', '<leader>ps', '<cmd>new<cr>')
     bind('Edit init.lua', 'n', '<leader>pc', function() vim.cmd.edit(vim.fn.stdpath('config') .. '/init.lua') end)
     bind('Edit Dotfiles', 'n', '<leader>pd', function()
