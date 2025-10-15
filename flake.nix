@@ -38,10 +38,12 @@
           mise          # Generic toolchain manager
           go            # Go
           gopls         # Go LSP
-          claude-code   # Slop
+          codex         # Slop
+          claude-code   # Sloppier
           git-lfs       # Github = Dropbox
 
           # LSP
+          clang-tools # C/C++
           lua-language-server
           nil  # Nix
           nixd # Nix but different
