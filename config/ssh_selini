@@ -4,6 +4,8 @@ Host *
 
 Host OH-*
     IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
+Host MTL-*
+    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
 Host TA-* TKY-* AC-*
     User archy
     IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
