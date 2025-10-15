@@ -118,7 +118,11 @@ echo -e "\nSymlinking configs..."
 # Install config symlinks
 install() {
     SRC=$1
-    DST=~/.config/$2
+    if [[ "$2" == "$(realpath ~)"* ]]; then
+        DST=$2
+    else
+        DST=~/.config/$2
+    fi
     echo "  $SRC -> $DST"
     mkdir -p $(dirname $DST)
     ln -sf $PWD/config/$SRC $DST
