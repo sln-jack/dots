@@ -39,8 +39,10 @@
           go            # Go
           gopls         # Go LSP
           claude-code   # Slop
+          codex         # Slop
 
           # LSP
+          clang-tools # C/C++
           lua-language-server
           nil  # Nix
           nixd # Nix but different
