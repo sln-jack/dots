@@ -1,10 +1,17 @@
 Host *
+    CanonicalizeHostname yes
+    CanonicalDomains selini.tech
+
+Host OH-*
+    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
+Host TA-* TKY-* AC-*
+    User archy
     IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
 
-Host OH-DEV-07
-    HostName OH-DEV-07.selini.tech
-Host TKY-DEV-10
-    HostName TKY-DEV-10.selini.tech
+Host github.com
+    HostName github.com
+    User git
+    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
 
 Host github.com-foltik
     HostName github.com
