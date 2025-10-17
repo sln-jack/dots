@@ -135,13 +135,13 @@ install nvim/init.lua nvim/init.lua
 install nvim/lib.lua nvim/lua/lib.lua
 install fish.fish fish/config.fish
 install fish_selini.fish fish/conf.d/selini.fish
-install ssh_selini ~/.ssh/config
 
 if $MACOS; then
     install fish_macos.fish fish/conf.d/macos.fish
     install ghostty.conf ghostty/config
     install neovide.toml neovide/config.toml
     install aerospace.toml aerospace/aerospace.toml
+    install ssh_selini ~/.ssh/config
 fi
 if $LINUX; then
     install fish_linux.fish fish/conf.d/linux.fish
