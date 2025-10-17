@@ -143,7 +143,6 @@ install nvim/setup.lua nvim/lua/setup.lua
 install nvim/framework.lua nvim/lua/framework.lua
 install fish.fish fish/config.fish
 install fish_selini.fish fish/conf.d/selini.fish
-install ssh_selini ~/.ssh/config
 
 if $MACOS; then
     install keymap.plist ~/Library/LaunchAgents/keymap.plist
@@ -151,6 +150,7 @@ if $MACOS; then
     install ghostty.conf ghostty/config
     install neovide.toml neovide/config.toml
     install aerospace.toml aerospace/aerospace.toml
+    install ssh_selini ~/.ssh/config
 fi
 if $LINUX; then
     install fish_linux.fish fish/conf.d/linux.fish
