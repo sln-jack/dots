@@ -363,7 +363,8 @@ local Keymaps = {
           end
         end
         local lines = vim.api.nvim_buf_line_count(d.bufnr)
-        vim.api.nvim_win_set_cursor(0, { math.min(d.lnum + 1, lines), d.col })
+        -- Ignore failure in case diagnostic is stale
+        pcall(vim.api.nvim_win_set_cursor, 0, { math.min(d.lnum + 1, lines), d.col })
         vim.schedule(function()
           vim.diagnostic.open_float(d.bufnr, { scope = 'cursor', focus = false })
         end)
