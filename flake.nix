@@ -39,6 +39,7 @@
           go            # Go
           gopls         # Go LSP
           claude-code   # Slop
+          git-lfs       # Github = Dropbox
 
           # LSP
           lua-language-server
