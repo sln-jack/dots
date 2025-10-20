@@ -1,21 +1,16 @@
 Host *
+    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
+    ForwardAgent yes
     CanonicalizeHostname yes
     CanonicalDomains selini.tech
 
-Host OH-* MTL-*
-    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
-    ForwardAgent yes
 Host TA-* TKY-* AC-*
     User archy
-    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
-    ForwardAgent yes
 
-Host github.com
+Host github.com*
     HostName github.com
+    CanonicalizeHostname no
     User git
-    IdentityAgent /Users/jack/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
-
 Host github.com-foltik
-    HostName github.com
-    User git
     IdentityFile ~/.ssh/id_ed25519_gh
+    IdentitiesOnly yes
