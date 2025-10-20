@@ -97,3 +97,16 @@ function z
     test -z $dir && return
     test -d $dir && cd $dir
 end
+
+function fish_user_key_bindings
+    # Tab: accept suggestion if any, then expand abbreviation if any, then complete
+    bind \t '
+        if commandline --showing-suggestion
+            commandline -f accept-autosuggestion
+        else
+            commandline -f expand-abbr || commandline -f complete
+        end
+    '
+    # Colon: expand abbrs like space
+    bind ':' 'commandline -f expand-abbr; commandline -i :'
+end
