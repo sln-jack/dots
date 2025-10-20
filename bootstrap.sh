@@ -44,7 +44,10 @@ if $MACOS; then
         nix profile install .#dots-macos
     fi
     # Upgrade nix tools if flake.nix has changes
-    if ! git diff --quiet flake.nix; then
+    if [ "$(cat ~/.cache/dots_commit 2>/dev/null)" != "$(git rev-parse HEAD)" ]; then
+      nix profile upgrade dots-macos && \
+        git rev-parse HEAD > ~/.cache/dots_commit
+    elif ! git diff --quiet flake.nix; then
         git add flake.nix
         nix profile upgrade dots-macos
     fi
@@ -92,7 +95,10 @@ if $LINUX; then
         nix profile install .#dots
     fi
     # Upgrade nix tools if flake.nix has changes
-    if ! git diff --quiet flake.nix; then
+    if [ "$(cat ~/.cache/dots_commit 2>/dev/null)" != "$(git rev-parse HEAD)" ]; then
+      nix profile upgrade dots && \
+        git rev-parse HEAD > ~/.cache/dots_commit
+    elif ! git diff --quiet flake.nix; then
         git add flake.nix
         nix profile upgrade dots
     fi
