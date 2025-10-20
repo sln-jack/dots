@@ -15,6 +15,10 @@ alias lla="exa -lah"
 alias llt="exa -lah --sort time"
 alias lt="exa -lTh"
 
+alias ssh='ssh -F $HOME/.ssh/config'
+alias scp='scp -F $HOME/.ssh/config'
+alias rsync='rsync -e "ssh -F $HOME/.ssh/config"'
+
 abbr -a e nvim
 abbr -a y yazi
 
