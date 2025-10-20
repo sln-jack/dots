@@ -45,6 +45,7 @@
 [core]
     # Global personal gitignore
     excludesfile = ~/.git/ignore
+    sshCommand = ssh -F ~/.ssh/config
 
 [rebase]
     # Automatically handle --fixup commits in `git rebase -i`

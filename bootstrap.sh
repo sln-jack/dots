@@ -134,6 +134,8 @@ install() {
     ln -sf $PWD/config/$SRC $DST
 }
 
+touch ~/.ssh/config
+
 install tmux.conf tmux/tmux.conf
 install gitconfig git/config
 install gitignore git/ignore
