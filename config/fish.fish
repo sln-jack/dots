@@ -33,6 +33,7 @@ abbr -a gs git status
 abbr -a gc git switch
 abbr -a gcc git switch -c
 abbr -a gcd git branch -D
+abbr -a gba git branch -a
 abbr -a gd git diff
 abbr -a gds git diff --staged
 abbr -a ga git add
@@ -99,14 +100,12 @@ function z
 end
 
 function fish_user_key_bindings
-    # Tab: accept suggestion if any, then expand abbreviation if any, then complete
-    bind \t '
-        if commandline --showing-suggestion
-            commandline -f accept-autosuggestion
-        else
-            commandline -f expand-abbr || commandline -f complete
-        end
-    '
+    # Shift-Tab: accept autosuggestion
+    bind shift-tab 'commandline -f accept-autosuggestion'
+    # Ctrl-Backspace/Del: delete word
+    bind ctrl-delete    forward-kill-word
+    bind ctrl-backspace backward-kill-word
+    bind ctrl-h         backward-kill-word # Tmux
     # Colon: expand abbrs like space
     bind ':' 'commandline -f expand-abbr; commandline -i :'
 end
