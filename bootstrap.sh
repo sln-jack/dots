@@ -139,6 +139,8 @@ install gitconfig git/config
 install gitignore git/ignore
 install nvim/init.lua nvim/init.lua
 install nvim/lib.lua nvim/lua/lib.lua
+install nvim/setup.lua nvim/lua/setup.lua
+install nvim/framework.lua nvim/lua/framework.lua
 install fish.fish fish/config.fish
 
 if $MACOS; then
