@@ -1,18 +1,14 @@
 local F = {}
 
--- UTILITIES ------------------------------------------------------------------------------------------------------
+-------- Utils -----------------------------------------------------------------------------------------------
 
--- Makes a function lazy-capable with .with for deferred evaluation
+-- Makes a function `foo` lazy-capable with `foo.with(...args)` to turn it into a closure
 local function lazy(fn)
   return setmetatable({
     with = function(...)
-      local args = { ... }
+      local args = {...}
       return function()
-        local res = fn(unpack(args))
-        if type(res) == 'function' then
-          return res()
-        end
-        return res
+        return fn(unpack(args))
       end
     end,
   }, {
@@ -22,46 +18,62 @@ local function lazy(fn)
   })
 end
 
--- Evaluates an arg that's either a function/callable or a plain value
-local function is_callable(x)
-  if type(x) == 'function' then return true end
+-- If `x` is callable, call it, otherwise return `x` as a value
+local function call(x)
+  if type(x) == 'function' then
+    return x()
+  end
   if type(x) == 'table' then
     local mt = getmetatable(x)
-    return mt and mt.__call ~= nil
+    if mt and mt.__call ~= nil then
+      return x()
+    end
   end
-  return false
+  return x
 end
 
-function F.eval(x)
-  return is_callable(x) and x() or x
-end
+-------- Helpers ---------------------------------------------------------------------------------------------
 
--- CONTEXT -------------------------------------------------------------------------------------------------------
-
--- Get current working directory (buffer's directory if editing a file, otherwise vim's cwd)
+-- Get current working directory
+-- Uses buffer's directory if editing a file, otherwise vim's cwd
 F.cwd = lazy(function()
   local bufname = vim.api.nvim_buf_get_name(0)
   if bufname ~= "" then
     return vim.fn.fnamemodify(bufname, ':p:h')
+  else
+    return vim.fn.getcwd()
   end
-  return vim.fn.getcwd()
 end)
 
 -- PROJECT -------------------------------------------------------------------------------------------------------
 
 F.project = {
-  -- Find closest .nvim/ directory (current project)
-  dir = lazy(function()
-    local path = vim.fn.expand('%:p:h')
-    local nvim_dir = vim.fs.find('.nvim', { path = path, upward = true, type = 'directory' })[1]
-    return nvim_dir and vim.fs.dirname(nvim_dir) or vim.fn.getcwd()
+  -- Return all `.nvim` project directories from the top down
+  all = function(path)
+    path = path or vim.fn.expand('%:p:h')
+    local dirs, seen = {}, {}
+    for _, marker in ipairs({'.nvim', '.git'}) do
+      for _, dir in ipairs(vim.fs.find(marker, { path = path, upward = true, type = 'directory' })) do
+        local parent = vim.fs.dirname(dir)
+        if not seen[parent] then
+          seen[parent] = true
+          table.insert(dirs, 1, parent) -- insert at start so topmost first
+        end
+      end
+    end
+    return dirs
+  end,
+
+  -- Find top-level project dir
+  root = lazy(function(path)
+    local dirs = F.project.all(path)
+    return dirs[1]
   end),
 
-  -- Find top-level git root
-  root = lazy(function()
-    local path = vim.fn.expand('%:p:h')
-    local git = vim.fs.find('.git', { path = path, upward = true })[1]
-    return git and vim.fs.dirname(git) or F.project.dir()
+  -- Find nearest (deepest) project dir
+  nearest = lazy(function(path)
+    local dirs = F.project.all(path)
+    return dirs[#dirs]
   end),
 
   -- Create .nvim/ marker in current directory
@@ -75,6 +87,8 @@ F.project = {
   -- Load project-specific config from .nvim/init.lua
   load = function()
     local dir = F.project.dir()
+    if not dir then return end
+
     local init_file = dir .. '/.nvim/init.lua'
     if vim.fn.filereadable(init_file) == 1 then
       local chunk = loadfile(init_file)
@@ -87,125 +101,115 @@ F.project = {
   end,
 }
 
--- PICK ----------------------------------------------------------------------------------------------------------
+-- PICK ------------------------------------------------------------------------------------------------------
 
 F.pick = {
   -- File picker
-  -- opts:
   --   * dir: directory to search (default cwd)
+  --   * depth: max search depth
   --   * hidden: include hidden files
-  --   * no_ignore: include gitignored files
+  --   * gitignored: include gitignored files
   file = lazy(function(opts)
     opts = opts or {}
-    return function()
-      local telescope_opts = {}
-      -- Evaluate dir lazily if it's a function
-      local dir = F.eval(opts.dir)
-      -- Auto-expand paths
-      if dir then 
-        telescope_opts.cwd = vim.fn.expand(dir)
-        telescope_opts.prompt_title = string.format('Files (%s)', telescope_opts.cwd)
-      else
-        telescope_opts.prompt_title = string.format('Files (%s)', vim.fn.getcwd())
-      end
+    local telescope_opts = {}
 
-      -- Build fd command based on options (depth/hidden/no_ignore)
-      if opts.hidden or opts.no_ignore or opts.depth then
-        local cmd = { 'fd', '--type', 'f' }
-        if opts.hidden then table.insert(cmd, '--hidden') end
-        if opts.no_ignore then table.insert(cmd, '--no-ignore') end
-        if opts.depth then
-          table.insert(cmd, '--max-depth')
-          table.insert(cmd, tostring(opts.depth))
-        end
-        telescope_opts.find_command = cmd
-      end
+    -- Search in either opts.dir or the cwd
+    local dir = call(opts.dir) or F.cwd()
+    telescope_opts.cwd = vim.fn.expand(dir)
+    telescope_opts.prompt_title = string.format('Files (%s)', dir)
 
-      require('telescope.builtin').find_files(telescope_opts)
+    -- Build fd command based on options (depth/hidden/no_ignore)
+    local cmd = { 'fd', '--type', 'f' }
+    if opts.depth then
+      table.insert(cmd, '--max-depth')
+      table.insert(cmd, tostring(opts.depth))
     end
+    if opts.hidden then table.insert(cmd, '--hidden') end
+    if opts.gitignored then table.insert(cmd, '--no-ignore') end
+    telescope_opts.find_command = cmd
+
+    require('telescope.builtin').find_files(telescope_opts)
   end),
 
-  -- Directory picker (lists directories only)
-  -- opts:
+  -- Directory picker
   --   * dir: directory to search (default cwd)
+  --   * depth: max search depth
   --   * hidden: include hidden directories
-  --   * no_ignore: include gitignored directories
+  --   * gitignored: include gitignored directories
   dir = lazy(function(opts)
+    local tb = require('telescope.builtin')
+    local actions = require('telescope.actions')
+    local state = require('telescope.actions.state')
+
     opts = opts or {}
-    return function()
-      local tb = require('telescope.builtin')
-      local actions = require('telescope.actions')
-      local state = require('telescope.actions.state')
-      local telescope_opts = {}
-      local base = F.eval(opts.dir)
-      if base then telescope_opts.cwd = vim.fn.expand(base) end
-      local search_root = telescope_opts.cwd or vim.fn.getcwd()
-      telescope_opts.prompt_title = string.format('Dirs (%s)', search_root)
-      local cmd = { 'fd', '--type', 'd' }
-      if opts.hidden then table.insert(cmd, '--hidden') end
-      if opts.no_ignore then table.insert(cmd, '--no-ignore') end
-      local depth = opts.depth or 1
-      if depth then
-        table.insert(cmd, '--max-depth')
-        table.insert(cmd, tostring(depth))
-      end
-      telescope_opts.find_command = cmd
-      telescope_opts.attach_mappings = function(_, map)
-        map('i', '<cr>', function(prompt_bufnr)
-          local entry = state.get_selected_entry()
-          actions.close(prompt_bufnr)
-          vim.cmd('cd ' .. entry.path)
-          vim.cmd('edit .')
-        end)
-        return true
-      end
-      tb.find_files(telescope_opts)
+    local telescope_opts = {}
+
+    -- Search in either opts.dir or the cwd
+    local dir = opts.dir or F.cwd()
+    telescope_opts.cwd = vim.fn.expand(dir)
+    telescope_opts.prompt_title = string.format('Dirs (%s)', dir)
+
+    -- Build fd command based on options (depth/hidden/no_ignore)
+    local cmd = { 'fd', '--type', 'd' }
+    if opts.depth then
+      table.insert(cmd, '--max-depth')
+      table.insert(cmd, tostring(opts.depth))
     end
+    if opts.hidden then table.insert(cmd, '--hidden') end
+    if opts.gitignored then table.insert(cmd, '--no-ignore') end
+    telescope_opts.find_command = cmd
+
+    -- Bind enter to cd and edit the selected dir
+    telescope_opts.attach_mappings = function(_, map)
+      map('i', '<cr>', function(prompt_bufnr)
+        local entry = state.get_selected_entry()
+        actions.close(prompt_bufnr)
+        vim.cmd('cd ' .. entry.path)
+        vim.cmd('edit .')
+      end)
+      return true
+    end
+
+    tb.find_files(telescope_opts)
   end),
 
   -- Buffer picker
   buffer = function()
-    return function()
-      require('telescope.builtin').buffers()
-    end
+    require('telescope.builtin').buffers()
   end,
 }
 
--- GREP ----------------------------------------------------------------------------------------------------------
+-- GREP ------------------------------------------------------------------------------------------------------
 
 -- Grep files or current buffer
 -- opts:
 --   * dir: directory to search (omit to grep current buffer)
 --   * hidden: search hidden files
---   * no_ignore: search gitignored files
+--   * gitignored: search gitignored files
 F.grep = lazy(function(opts)
   opts = opts or {}
-  return function()
-    -- Evaluate dir lazily if it's a function
-    local dir = F.eval(opts.dir)
-    -- Auto-expand paths
-    if dir then
-      dir = vim.fn.expand(dir)
-    end
 
-    -- Default to current buffer if no dir specified
-    if not dir then
-      require('telescope.builtin').current_buffer_fuzzy_find { prompt_title = 'Grep (buffer)' }
-    else
-      local telescope_opts = { cwd = dir, prompt_title = string.format('Grep (%s)', dir) }
+  -- Search in either opts.dir or the current buffer
+  local dir = call(opts.dir)
+  if not dir then
+    require('telescope.builtin').current_buffer_fuzzy_find { prompt_title = 'Ripgrep (buffer)' }
+  else
+    local telescope_opts = {
+      cwd = vim.fn.expand(dir),
+      prompt_title = string.format('Ripgrep (%s)', dir)
+    }
 
-      -- Build rg args based on options
-      if opts.hidden or opts.no_ignore then
-        telescope_opts.additional_args = function()
-          local args = {}
-          if opts.hidden then table.insert(args, '--hidden') end
-          if opts.no_ignore then table.insert(args, '--no-ignore') end
-          return args
-        end
+    -- Build rg args based on options
+    if opts.hidden or opts.gitignore then
+      telescope_opts.additional_args = function()
+        local args = {}
+        if opts.hidden then table.insert(args, '--hidden') end
+        if opts.gitignore then table.insert(args, '--no-ignore') end
+        return args
       end
-
-      require('telescope.builtin').live_grep(telescope_opts)
     end
+
+    require('telescope.builtin').live_grep(telescope_opts)
   end
 end)
 
@@ -213,74 +217,76 @@ end)
 
 -- Run shell command
 F.shell = lazy(function(cmd)
-  return function() vim.cmd('!' .. cmd) end
+  vim.cmd('!' .. cmd)
 end)
 
 -- Edit file
 F.edit = lazy(function(path)
-  return function() vim.cmd.edit(vim.fn.expand(F.eval(path))) end
+  path = vim.fn.expand(call(path))
+  if path and path ~= "" then
+    vim.cmd.edit(path)
+  end
 end)
 
 -- Change directory
 F.cd = lazy(function(path)
-  return function() vim.cmd.cd(vim.fn.expand(F.eval(path))) end
+  path = vim.fn.expand(call(path))
+  if path and path ~= "" then
+    vim.cmd.cd(path)
+  end
 end)
 
 -- Run vim command (caller should include : if needed, e.g. ':Yazi')
 F.cmd = lazy(function(cmd)
-  return function()
-    vim.cmd(cmd)
-  end
+  vim.cmd(cmd)
 end)
 
 -- LSP -----------------------------------------------------------------------------------------------------------
 
 F.lsp = {
   -- Rename symbol
-  rename = function() 
-    return function() require('live-rename').map { insert = true } end
+  rename = function()
+    require('live-rename').map { insert = true }
   end,
 
   -- Go to definition
-  definition = function() 
-    return function() require('telescope.builtin').lsp_definitions() end
+  definition = function()
+    require('telescope.builtin').lsp_definitions()
   end,
 
   -- Find references
-  references = function() 
-    return function() require('telescope.builtin').lsp_references() end
+  references = function()
+    require('telescope.builtin').lsp_references()
   end,
 
   -- Workspace symbols
-  symbols = function() 
-    return function() require('telescope.builtin').lsp_dynamic_workspace_symbols() end
+  symbols = function()
+    require('telescope.builtin').lsp_dynamic_workspace_symbols()
   end,
 
   -- Document symbols
   doc_symbols = function()
-    return function() require('telescope.builtin').lsp_document_symbols() end
+    require('telescope.builtin').lsp_document_symbols()
   end,
 
   -- Implementations
   implementations = function()
-    return function() require('telescope.builtin').lsp_implementations() end
+    require('telescope.builtin').lsp_implementations()
   end,
 
   -- Type definitions
   types = function()
-    return function() require('telescope.builtin').lsp_type_definitions() end
+    require('telescope.builtin').lsp_type_definitions()
   end,
 
   -- Code action
   action = function()
-    return vim.lsp.buf.code_action
+    vim.lsp.buf.code_action()
   end,
 
   -- Format buffer
   format = function()
-    return function()
-      require('conform').format { async = true, lsp_format = 'fallback' }
-    end
+    require('conform').format { async = true, lsp_format = 'fallback' }
   end,
 
   -- Jump to next diagnostic for a list of severities (e.g., {'ERROR','WARN'})
@@ -349,8 +355,7 @@ F.lsp = {
 
 -- WHEN ----------------------------------------------------------------------------------------------------------
 
--- Conditional execution
--- Examples:
+-- Conditional execution:
 --   F.when({lang = 'cpp'}, F.lsp.definition())
 --   F.when({lang = {'cpp', 'rust'}}, F.shell('make'))
 --   F.when({buffer = 'help'}, function() vim.cmd('q') end)
@@ -414,100 +419,133 @@ F.tree = {
 
 -- SETUP ---------------------------------------------------------------------------------------------------------
 
--- Main initialization - handles setup and reload logic
-F.setup = function(config)
-  -- Initialize global state
-  _G.F = _G.F or {}
+-- Setup a project with the given `init.lua` path and `config`
+local function setup_project(state, init, config)
+  -- Setup per-project state
+  if not state.projects[init] then
+    state.projects[init] = {}
+  end
+  local project = state.projects[init]
 
-  -- Bootstrap setup (only runs once)
-  if not _G.F.initialized then
-    require('setup').setup()
-    _G.F.initialized = true
+  if not project.config then
+    project.config = config
   end
 
-  -- Clear existing keymaps on reload
-  if _G.F.keymaps then
-    for _, keymap in ipairs(_G.F.keymaps) do
-      pcall(vim.keymap.del, keymap.mode, keymap.lhs)
+  -- Setup keybinds
+  if not project.keymaps then
+    project.keymaps = {}
+  else
+    -- Clear existing keybinds
+    for _, keymap in ipairs(project.keymaps) do
+      pcall(vim.keymap.del, keymap.modes, keymap.key)
     end
   end
-  _G.F.keymaps = {}
-
-  -- Apply keybindings from config
+  -- Supported formats for `config.keys`:
+  --   [{ 'Description',            '<key>' }] = action  -- defaults to {'n'}
+  --   [{ 'Description', {'i','n'}, '<key>' }] = action
   if config.keys then
     for binding, action in pairs(config.keys) do
-      local modes, key, desc
-      -- Supported forms:
-      --   ['<key>'] = action
-      --   [{ {'i','n'}, '<key>' }] = action
-      --   [{ 'i','n','<key>' }] = action
-      --   [{ 'Description', '<key>' }] = action        -- default normal mode
-      --   [{ 'Description', {'i','n'}, '<key>' }] = action
-      if type(binding) == 'table' then
-        if type(binding[1]) == 'string' then
-          desc = binding[1]
-          if type(binding[2]) == 'table' and binding[3] then
-            modes = binding[2]
-            key = binding[3]
-          else
-            modes = 'n'
-            key = binding[2]
-          end
-        elseif type(binding[1]) == 'table' and binding[2] then
-          modes = binding[1]
-          key = binding[2]
-        else
-          key = binding[#binding]
-          if #binding > 1 then
-            modes = {}
-            for i = 1, #binding - 1 do modes[i] = binding[i] end
-          else
-            modes = 'n'
-          end
-        end
-      else
-        modes = 'n'
-        key = binding
+
+      if type(binding) ~= "table" or #binding < 2 or #binding > 3 then
+        error("Invalid keybind: expecting {'desc', 'key'} or {'desc', {'i', 'n', ...}, 'key'}")
       end
+
+      local desc, modes, key
+      if #binding == 2 then
+        desc, modes, key = binding[1], {"n"},      binding[2]
+      elseif #binding == 3 then
+        desc, modes, key = binding[1], binding[2], binding[3]
+      end
+
+      -- vim.keymap.set doesn't like metatable with __call
+      if type(action) == "table" then
+        local mt = getmetatable(action)
+        action = mt.__call
+      end
+
       vim.keymap.set(modes, key, action, { silent = true, desc = desc })
-      table.insert(_G.F.keymaps, { mode = modes, lhs = key })
+      table.insert(project.keymaps, { modes = modes, key = key })
     end
   end
+end
 
-
-  -- Load project-specific config
-  local project = F.project.load()
-  if project.keys then
-    for key, action in pairs(project.keys) do
-      vim.keymap.set('n', key, action, { desc = 'Project: ' .. key })
-      table.insert(_G.F.keymaps, { mode = 'n', lhs = key })
-    end
+local function setup_global()
+  -- Initialize lua-global state store
+  if not _G.F then
+    _G.F = F
+    _G.F.state = {}
   end
-  if project.setup then
-    project.setup()
+  local state = _G.F.state
+
+  -- Call setup.lua once
+  if not state.setup then
+    require('setup').setup()
+    state.setup = true
   end
 
-  -- Setup auto-reload
-  if not _G.F.reload_setup then
-    local reload = function()
-      package.loaded.framework = nil
-      package.loaded.init = nil
-      vim.cmd('source ' .. vim.fn.stdpath('config') .. '/init.lua')
-      vim.notify('Config reloaded')
-    end
+  -- Initialize project tracking
+  if not state.projects then
+    state.projects = {}
 
+    -- Load projects when editing an init.lua
     vim.api.nvim_create_autocmd('BufWritePost', {
       pattern = {
-        vim.fn.stdpath('config') .. '/init.lua',
-        vim.fn.stdpath('config') .. '/framework.lua',
+        '*/.config/nvim/init.lua',
         '*/.nvim/init.lua',
       },
-      callback = reload
+      callback = function(args)
+        local init = args.file
+        if init == '' then return end
+
+        local dirs = F.project.all(init)
+        for _, dir in ipairs(dirs) do
+          local project_init = dir .. '/.nvim/init.lua'
+          if vim.fn.filereadable(project_init) == 1 then
+            vim.cmd('source ' .. project_init)
+            vim.notify('Loaded ' .. project_init)
+          end
+        end
+
+        vim.cmd('source ' .. init)
+        vim.notify('Loaded ' .. init)
+      end,
     })
 
-    vim.api.nvim_create_user_command('Reload', reload, {})
-    _G.F.reload_setup = true
+    -- Load parent projects when editing a new file
+    local cache = {}
+    vim.api.nvim_create_autocmd('BufEnter', {
+      callback = function(args)
+        local path = args.file
+        if path == '' then return end
+
+        local projects = cache[path]
+        if not projects then
+          projects = F.project.all(path)
+          cache[path] = projects
+        end
+        if #projects == 0 then return end
+
+        for _, dir in ipairs(projects) do
+          local init = dir .. '/.nvim/init.lua'
+          if not state.projects[init] and vim.fn.filereadable(init) == 1 then
+            vim.cmd('source ' .. init)
+            vim.notify('Loaded ' .. init)
+          end
+        end
+      end
+    })
   end
+
+  return state
+end
+
+-- Public setup entrypoint
+F.setup = function(config)
+  local state = setup_global()
+
+  -- Setup project using path of calling init.lua file
+  local init = debug.getinfo(2, 'S').short_src
+  setup_project(state, init, config)
 end
 
 return F
