@@ -100,8 +100,10 @@ function z
 end
 
 function fish_user_key_bindings
-    # Shift-Tab: accept autosuggestion
-    bind shift-tab 'commandline -f accept-autosuggestion'
+    # Shift-{Tab,Enter}: accept autosuggestion {,and run}
+    bind shift-tab   'commandline -f accept-autosuggestion'
+    bind shift-enter 'commandline -f accept-autosuggestion execute'
+
     # Ctrl-Backspace/Del: delete word
     bind ctrl-delete    forward-kill-word
     bind ctrl-backspace backward-kill-word
