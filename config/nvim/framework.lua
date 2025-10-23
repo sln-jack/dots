@@ -360,30 +360,10 @@ F.lsp = {
 --   F.when({lang = {'cpp', 'rust'}}, F.shell('make'))
 --   F.when({buffer = 'help'}, function() vim.cmd('q') end)
 F.when = function(cond, action)
-  return function()
-    local ft = vim.bo.filetype
-
-    -- Check language/filetype condition
-    if cond.lang then
-      local langs = type(cond.lang) == 'table' and cond.lang or {cond.lang}
-      local matched = false
-      for _, lang in ipairs(langs) do
-        if ft == lang then
-          matched = true
-          break
-        end
-      end
-      if not matched then return end
-    end
-
-    -- Check buffer type condition
-    if cond.buffer and vim.bo.buftype ~= cond.buffer then
-      return
-    end
-
-    -- Execute action
-    return action()
-  end
+  return setmetatable({}, {
+    __call = action,
+    __cond = cond,
+  })
 end
 
 -- TREE -----------------------------------------------------------------------------------------------------------
@@ -426,20 +406,25 @@ local function setup_project(state, init, config)
     state.projects[init] = {}
   end
   local project = state.projects[init]
+  project.config = config
 
-  if not project.config then
-    project.config = config
-  end
-
-  -- Setup keybinds
+  -- Setup fresh keybinds
   if not project.keymaps then
     project.keymaps = {}
   else
-    -- Clear existing keybinds
     for _, keymap in ipairs(project.keymaps) do
       pcall(vim.keymap.del, keymap.modes, keymap.key)
     end
   end
+  -- Setup fresh autocmds
+  if not project.autocmds then
+    project.autocmds = {}
+  else
+    for _, autocmd in ipairs(project.autocmds) do
+      pcall(vim.api.nvim_del_autocmd, autocmd)
+    end
+  end
+
   -- Supported formats for `config.keys`:
   --   [{ 'Description',            '<key>' }] = action  -- defaults to {'n'}
   --   [{ 'Description', {'i','n'}, '<key>' }] = action
@@ -457,14 +442,33 @@ local function setup_project(state, init, config)
         desc, modes, key = binding[1], binding[2], binding[3]
       end
 
-      -- vim.keymap.set doesn't like metatable with __call
+      -- Handle metatable from lazy() and when()
+      local cond
       if type(action) == "table" then
         local mt = getmetatable(action)
         action = mt.__call
+        cond = mt.__cond
       end
 
-      vim.keymap.set(modes, key, action, { silent = true, desc = desc })
-      table.insert(project.keymaps, { modes = modes, key = key })
+      if cond then
+        -- Conditional keybinds get a FileType autocmd to determine whether apply to each buffer
+        local patterns = type(cond.lang) == 'table' and cond.lang or { cond.lang or '*' }
+        local autocmd = vim.api.nvim_create_autocmd('FileType', {
+          pattern = patterns,
+          callback = function(ev)
+            if cond.buffer and vim.bo[ev.buf].buftype ~= cond.buffer then
+              return
+            end
+            vim.keymap.set(modes, key, action, { buffer = ev.buf, silent = true, desc = desc })
+          end,
+        })
+        table.insert(project.autocmds, autocmd)
+        -- Not stored in project.keymaps since they're ephemeral anyways
+      else
+        -- Unconditional binds are set globally
+        vim.keymap.set(modes, key, action, { silent = true, desc = desc })
+        table.insert(project.keymaps, { modes = modes, key = key })
+      end
     end
   end
 end

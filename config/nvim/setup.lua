@@ -149,7 +149,6 @@ local plugins = {
   {
     'saghen/blink.cmp',
     event = 'VimEnter',
-    dependencies = { 'folke/lazydev.nvim' },
     build = 'cargo build --release',
     opts = {
       signature = { enabled = true },
@@ -162,11 +161,9 @@ local plugins = {
         ['<Down>'] = { 'select_next', 'fallback' },
         ['<C-space>'] = { 'show' },
         ['<C-d>'] = { 'show_documentation' },
-        ['<C-j>'] = { 'scroll_documentation_down', 'fallback' },
-        ['<C-k>'] = { 'scroll_documentation_up', 'fallback' },
         ['<C-s>'] = { 'show_signature' },
-        ['<C-j>'] = { 'scroll_signature_down', 'fallback' },
-        ['<C-k>'] = { 'scroll_signature_up', 'fallback' },
+        ['<C-j>'] = { 'scroll_documentation_down', 'scroll_signature_down', 'fallback' },
+        ['<C-k>'] = { 'scroll_documentation_up',   'scroll_signature_up',   'fallback' },
       },
     },
   },
@@ -316,7 +313,13 @@ M.setup_vim = function()
 
   -- Clipboard (schedule to avoid startup delay)
   vim.schedule(function()
-    vim.o.clipboard = 'unnamedplus'    -- Sync clipboard with OS
+    if vim.env.SSH_TTY then
+      -- In SSH, force osc52
+      vim.g.clipboard = 'osc52'
+    else
+      -- Otherwise, let vim autodetect (xclip, pbcopy, etc)
+    end
+    vim.o.clipboard = 'unnamedplus'
   end)
 
   -- Highlight on yank

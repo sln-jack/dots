@@ -1,5 +1,24 @@
 local F = require('framework')
 
+--[[
+
+# TODO
+-  Ripgrep word in buffer/project
+-  Copy github branch/permalink to selected line / range
+-  Clangd toggleable inlay hints for fn args
+-  fix C-v p yiw`
+-  Focus active file and collapse all others when toggling tree 
+-  Setup OSC52 escape sequences <https://jvns.ca/til/vim-osc52/>
+-  `mksh path/to/scriptname`
+-  Try remote-ssh.nvim <https://neovimcraft.com/plugin/inhesrom/remote-ssh.nvim/>
+-  Setup C# LSP
+-  Setup neogit + diffview
+-  `:help nvim-treesitter-incremental-selection-mod`
+-  https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+-  https://github.com/davidmh/cmp-nerdfonts/blob/main/lua/cmp_nerdfonts/source.lua
+
+--]]
+
 F.setup {
   keys = {
     -------- Files -------------------------------------------------------------------------------------------
@@ -108,7 +127,7 @@ F.setup {
     end,
 
     -- Project markers
-    [{ 'Project: mark here', '<leader>pm' }] = F.project.mark(),
+    [{ 'Project: mark here', '<leader>pm' }] = F.project.mark,
 
     -- Filetype specific
     [{ 'Quit help/man/qf', 'q' }] = F.when({lang = {'help', 'man', 'qf', 'lspinfo'}}, F.cmd.with(':q')),
