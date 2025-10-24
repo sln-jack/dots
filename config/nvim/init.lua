@@ -108,9 +108,7 @@ F.setup {
 
     [{ 'Yazi', '<leader>y' }] = F.cmd.with(':Yazi'),
     [{ 'Toggle tree', '<leader>t' }] = F.tree.toggle,
-    [{ 'Re-yank selection after paste', { 'x' }, 'p' }] = function()
-      vim.cmd.normal('pgvy', true)
-    end,
+    [{ 'Re-yank selection after paste', { 'x' }, 'p' }] = F.cmd.with('normal! pgvy'),
     [{ 'Line start', { 'i' }, '<C-a>' }] = '<C-o>0',
     [{ 'Line end', { 'i' }, '<C-e>' }] = '<C-o>$',
     [{ 'Delete to EOL', { 'i' }, '<C-k>' }] = '<C-o>D',
