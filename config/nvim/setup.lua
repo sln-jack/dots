@@ -314,8 +314,10 @@ M.setup_vim = function()
   -- Clipboard (schedule to avoid startup delay)
   vim.schedule(function()
     if vim.env.SSH_TTY then
-      -- In SSH, force osc52
-      vim.g.clipboard = 'osc52'
+      -- TODO: This doesn't work becuase MacOS <16 UNCONDITIONALLY
+      -- POPS A DIALOG BOX ON EVERY PASTE WITH NO WAY TO DISABLE IT
+      -- -- In SSH, force osc52
+      -- vim.g.clipboard = 'osc52'
     else
       -- Otherwise, let vim autodetect (xclip, pbcopy, etc)
     end
