@@ -144,6 +144,7 @@ install nvim/framework.lua nvim/lua/framework.lua
 install fish.fish fish/config.fish
 
 if $MACOS; then
+    install keymap.plist ~/Library/LaunchAgents/keymap.plist
     install fish_macos.fish fish/conf.d/macos.fish
     install ghostty.conf ghostty/config
     install neovide.toml neovide/config.toml
@@ -155,6 +156,13 @@ fi
 if $NIX; then
     install direnv.toml direnv.toml
     install starship.toml starship.toml
+fi
+
+#------ Reload -----------------------------------------------------------------------------------------------
+
+if $MACOS; then
+    launchctl unload ~/Library/LaunchAgents/keymap.plist &>/dev/null || true
+    launchctl load ~/Library/LaunchAgents/keymap.plist
 fi
 
 echo -e "\n✅ Dots installed!"
