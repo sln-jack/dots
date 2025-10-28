@@ -40,6 +40,7 @@
           gopls         # Go LSP
           codex         # Slop
           claude-code   # Sloppier
+          git           # Github accesser 3000
           git-lfs       # Github = Dropbox
 
           # LSP
