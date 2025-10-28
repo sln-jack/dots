@@ -36,14 +36,46 @@ end
 
 -- Get current working directory
 -- Uses buffer's directory if editing a file, otherwise vim's cwd
-F.cwd = lazy(function()
+F.cwd = function()
   local bufname = vim.api.nvim_buf_get_name(0)
   if bufname ~= "" then
     return vim.fn.fnamemodify(bufname, ':p:h')
   else
     return vim.fn.getcwd()
   end
-end)
+end
+
+-- Get current visual mode selection or nil.
+F.selection = function()
+  -- Ensure some kind of visual mode
+  local mode = vim.fn.mode()
+  if mode ~= 'v' and mode ~= 'V' and mode ~= '\22' then
+    return nil
+  end
+
+  -- Exit and reselect to update < and > marks
+  vim.cmd('normal! gv')
+  local pos0 = vim.fn.getpos("'<")
+  local pos1 = vim.fn.getpos("'>")
+  local region = vim.fn.getregionpos(pos0, pos1, { type = mode, inclusive = true, eol = true })
+
+  local lines = {}
+  for _, seg in ipairs(region) do
+    local start_pos, end_pos = seg[1], seg[2]
+    -- local bufnr = start_pos[1]
+    local line = start_pos[2]
+    local col0 = start_pos[3]
+    local col1 = end_pos[3]
+
+    local text = vim.fn.getline(line)
+    if col0 > 0 and col1 > 0 and #text > 0 then
+      table.insert(lines, text:sub(col0, col1))
+    else
+      table.insert(lines, "")
+    end
+  end
+  return table.concat(lines, '\n')
+end
 
 -- PROJECT -------------------------------------------------------------------------------------------------------
 
@@ -110,25 +142,24 @@ F.pick = {
   --   * hidden: include hidden files
   --   * gitignored: include gitignored files
   file = lazy(function(opts)
+    local tb = require('telescope.builtin')
+
     opts = opts or {}
-    local telescope_opts = {}
-
-    -- Search in either opts.dir or the cwd
     local dir = call(opts.dir) or F.cwd()
-    telescope_opts.cwd = vim.fn.expand(dir)
-    telescope_opts.prompt_title = string.format('Files (%s)', dir)
 
-    -- Build fd command based on options (depth/hidden/no_ignore)
-    local cmd = { 'fd', '--type', 'f' }
+    local args = {}
     if opts.depth then
-      table.insert(cmd, '--max-depth')
-      table.insert(cmd, tostring(opts.depth))
+      table.insert(args, '--max-depth')
+      table.insert(args, tostring(opts.depth))
     end
-    if opts.hidden then table.insert(cmd, '--hidden') end
-    if opts.gitignored then table.insert(cmd, '--no-ignore') end
-    telescope_opts.find_command = cmd
+    if opts.hidden     then table.insert(args, '--hidden') end
+    if opts.gitignored then table.insert(args, '--no-ignore') end
 
-    require('telescope.builtin').find_files(telescope_opts)
+    tb.find_files({
+      prompt_title = string.format('Files (%s) %s', dir, table.concat(args, ' ')),
+      find_command = vim.tbl_extend('force', {'fd', '--type', 'f'}, args),
+      cwd          = vim.fn.expand(dir),
+    })
   end),
 
   -- Directory picker
@@ -142,35 +173,31 @@ F.pick = {
     local state = require('telescope.actions.state')
 
     opts = opts or {}
-    local telescope_opts = {}
+    local dir = call(opts.dir) or F.cwd()
 
-    -- Search in either opts.dir or the cwd
-    local dir = opts.dir or F.cwd()
-    telescope_opts.cwd = vim.fn.expand(dir)
-    telescope_opts.prompt_title = string.format('Dirs (%s)', dir)
-
-    -- Build fd command based on options (depth/hidden/no_ignore)
-    local cmd = { 'fd', '--type', 'd' }
+    local args = {}
     if opts.depth then
-      table.insert(cmd, '--max-depth')
-      table.insert(cmd, tostring(opts.depth))
+      table.insert(args, '--max-depth')
+      table.insert(args, tostring(opts.depth))
     end
-    if opts.hidden then table.insert(cmd, '--hidden') end
-    if opts.gitignored then table.insert(cmd, '--no-ignore') end
-    telescope_opts.find_command = cmd
+    if opts.hidden     then table.insert(args, '--hidden') end
+    if opts.gitignored then table.insert(args, '--no-ignore') end
 
-    -- Bind enter to cd and edit the selected dir
-    telescope_opts.attach_mappings = function(_, map)
-      map('i', '<cr>', function(prompt_bufnr)
-        local entry = state.get_selected_entry()
-        actions.close(prompt_bufnr)
-        vim.cmd('cd ' .. entry.path)
-        vim.cmd('edit .')
-      end)
-      return true
-    end
-
-    tb.find_files(telescope_opts)
+    tb.find_files({
+      prompt_title    = string.format('Dirs (%s) %s', dir, table.concat(args, ' ')),
+      cwd             = vim.fn.expand(dir),
+      find_command    = vim.tbl_extend('force', {'fd', '--type', 'd'}, args),
+      attach_mappings = function(_, map)
+        -- Bind <enter> to cd and edit the selected dir
+        map('i', '<cr>', function(prompt_bufnr)
+          local entry = state.get_selected_entry()
+          actions.close(prompt_bufnr)
+          vim.cmd('cd ' .. entry.path)
+          vim.cmd('edit .')
+        end)
+        return true
+      end
+    })
   end),
 
   -- Buffer picker
@@ -187,29 +214,35 @@ F.pick = {
 --   * hidden: search hidden files
 --   * gitignored: search gitignored files
 F.grep = lazy(function(opts)
+  local tb = require('telescope.builtin')
+
   opts = opts or {}
-
-  -- Search in either opts.dir or the current buffer
   local dir = call(opts.dir)
-  if not dir then
-    require('telescope.builtin').current_buffer_fuzzy_find { prompt_title = 'Ripgrep (buffer)' }
-  else
-    local telescope_opts = {
-      cwd = vim.fn.expand(dir),
-      prompt_title = string.format('Ripgrep (%s)', dir)
-    }
-
-    -- Build rg args based on options
-    if opts.hidden or opts.gitignore then
-      telescope_opts.additional_args = function()
-        local args = {}
-        if opts.hidden then table.insert(args, '--hidden') end
-        if opts.gitignore then table.insert(args, '--no-ignore') end
-        return args
-      end
+  local selection = F.selection()
+  if selection then
+    selection = vim.fn.escape(selection, [[\/.*$^~[](){}?+-]])
+    local newline = selection:find('\n', 1, true)
+    if newline then
+      selection = selection:sub(1, newline - 1)
     end
+  end
 
-    require('telescope.builtin').live_grep(telescope_opts)
+  if not dir then
+    tb.current_buffer_fuzzy_find {
+      prompt_title = 'Ripgrep (buffer)',
+      default_text = selection,
+    }
+  else
+    local args = {}
+    if opts.hidden     then table.insert(args, '--hidden') end
+    if opts.gitignored then table.insert(args, '--no-ignore') end
+
+    tb.live_grep({
+      prompt_title    = string.format('Ripgrep (%s) %s', dir, table.concat(args, ' ')),
+      cwd             = vim.fn.expand(dir),
+      default_text    = selection,
+      additional_args = args,
+    })
   end
 end)
 
@@ -244,6 +277,11 @@ end)
 -- LSP -----------------------------------------------------------------------------------------------------------
 
 F.lsp = {
+  -- Hover (show docs, signature, etc.)
+  hover = function()
+    vim.lsp.buf.hover()
+  end,
+
   -- Rename symbol
   rename = function()
     require('live-rename').map { insert = true }
@@ -259,23 +297,18 @@ F.lsp = {
     require('telescope.builtin').lsp_references()
   end,
 
-  -- Workspace symbols
+  -- Find symbol
   symbols = function()
     require('telescope.builtin').lsp_dynamic_workspace_symbols()
   end,
 
-  -- Document symbols
-  doc_symbols = function()
-    require('telescope.builtin').lsp_document_symbols()
-  end,
-
   -- Implementations
-  implementations = function()
+  impls = function()
     require('telescope.builtin').lsp_implementations()
   end,
 
   -- Type definitions
-  types = function()
+  typedefs = function()
     require('telescope.builtin').lsp_type_definitions()
   end,
 
@@ -287,6 +320,13 @@ F.lsp = {
   -- Format buffer
   format = function()
     require('conform').format { async = true, lsp_format = 'fallback' }
+  end,
+
+  -- Toggle inlay hints
+  toggle_hints = function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+    vim.lsp.inlay_hint.enable(not enabled, { bufnr = bufnr })
   end,
 
   -- Jump to next diagnostic for a list of severities (e.g., {'ERROR','WARN'})
@@ -351,6 +391,55 @@ F.lsp = {
       end
     end
   end),
+}
+
+
+-- GIT -----------------------------------------------------------------------------------------------------------
+
+-- Copy web permalink to selected line(s).
+--   * branch: copy link to a specific branch
+F.git = {
+  permalink = lazy(function(opts)
+    opts = opts or {}
+
+    local file = vim.fn.expand('%')
+    local root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+    local relpath = file:gsub('^' .. vim.pesc(root .. '/'), '')
+
+    local branch = opts.branch or vim.fn.systemlist('git rev-parse --abbrev-ref HEAD')[1] or 'main'
+    local remote = vim.fn.systemlist('git config --get remote.origin.url')[1]
+
+    local line0, line1
+    local mode = vim.fn.mode()
+    if mode == 'v' or mode == 'V' or mode == '\22' then
+      line0 = vim.fn.line("v")
+      line1 = vim.fn.line(".")
+    else
+      line0 = vim.fn.line('.')
+      line1 = line0
+    end
+    if line0 > line1 then
+      line0, line1 = line1, line0
+    end
+
+    if remote:match('github.com') then
+      local baseurl = remote
+        :gsub('^git@github%.com:', 'https://github.com/')
+        :gsub('%.git$', '')
+        :gsub('^https://github%.com/', 'https://github.com/')
+
+      local linespec = line0 == line1
+        and string.format('#L%d', line0)
+        or string.format('#L%d-L%d', line0, line1)
+
+      local url = string.format('%s/blob/%s/%s%s', baseurl, branch, relpath, linespec)
+
+      vim.fn.setreg('+', url)
+      vim.notify(url)
+    else
+      vim.notify('Unsupported remote: ' .. remote, vim.log.levels.WARN)
+    end
+  end)
 }
 
 -- WHEN ----------------------------------------------------------------------------------------------------------
@@ -425,21 +514,26 @@ local function setup_project(state, init, config)
     end
   end
 
-  -- Supported formats for `config.keys`:
-  --   [{ 'Description',            '<key>' }] = action  -- defaults to {'n'}
-  --   [{ 'Description', {'i','n'}, '<key>' }] = action
   if config.keys then
-    for binding, action in pairs(config.keys) do
+    for binding, action in pairs(config.keys.binds or {}) do
 
       if type(binding) ~= "table" or #binding < 2 or #binding > 3 then
         error("Invalid keybind: expecting {'desc', 'key'} or {'desc', {'i', 'n', ...}, 'key'}")
       end
 
+      -- Formats for `config.keys.binds`:
+      --   [{ 'Description',            '<key>' }] = action  -- defaults to {'n'}
+      --   [{ 'Description', {'i','n'}, '<key>' }] = action
       local desc, modes, key
       if #binding == 2 then
         desc, modes, key = binding[1], {"n"},      binding[2]
       elseif #binding == 3 then
         desc, modes, key = binding[1], binding[2], binding[3]
+      end
+
+      -- Remap key aliases
+      for alias, replacement in pairs(config.keys.aliases or {}) do
+        key = key:gsub(alias, replacement)
       end
 
       -- Handle metatable from lazy() and when()

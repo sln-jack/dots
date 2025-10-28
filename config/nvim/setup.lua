@@ -44,8 +44,9 @@ local plugins = {
           layout_config = { prompt_position = 'top' },
           mappings = {
             i = {
-              ['<Esc>'] = require('telescope.actions').close,
-              ['<C-enter>'] = 'to_fuzzy_refine',
+              ['<Esc>'] = 'close',
+              ['<C-j>'] = 'move_selection_next',
+              ['<C-k>'] = 'move_selection_previous',
             },
           },
         },
@@ -75,8 +76,45 @@ local plugins = {
           enable = true,
           lookahead = true,
           keymaps = {
-            ["af"] = "@function.outer",
-            ["if"] = "@function.inner",
+            ['af'] = '@function.outer',
+            ['if'] = '@function.inner',
+
+            ['ac'] = '@class.outer',
+            ['ic'] = '@class.inner',
+
+            ['as'] = '@block.outer',
+            ['is'] = '@block.inner',
+
+            ['ap'] = '@parameter.outer',
+            ['ip'] = '@parameter.inner',
+
+            ['al'] = '@assignment.lhs',
+            ['il'] = '@assignment.lhs',
+
+            ['ar'] = '@assignment.rhs',
+            ['ir'] = '@assignment.rhs',
+          },
+        },
+        move = {
+          enable = true,
+          set_jumps = true,
+          goto_next_start = {
+            [']f'] = '@function.outer',
+            [']c'] = '@class.outer',
+            [']s'] = '@block.outer',
+          },
+          goto_previous_start = {
+            ['[f'] = '@function.outer',
+            ['[c'] = '@class.outer',
+            ['[s'] = '@block.outer',
+          },
+        },
+        lsp_interop = {
+          enable = true,
+          border = 'none',
+          floating_preview_opts = {},
+          peek_definition_code = {
+            ["\\p"] = "@class.outer",
           },
         },
       },
