@@ -66,12 +66,24 @@ function reload
     end
 end
 
+# Open vim
 function v
     set args '.'
     if test (count $argv) -gt 0
         set args $argv
     end
     setsid neovide --no-vsync $args >/dev/null 2>&1 &
+end
+
+# Make script
+function mksh
+    set file (string join '' $argv[1] '.sh')
+    echo "#!/usr/bin/env bash" >> $file
+    echo "set -euo pipefail" >> $file
+    echo "" >> $file
+    echo "" >> $file
+    chmod +x $file
+    nvim -c "normal! G" -c "startinsert" $file
 end
 
 # Find process
