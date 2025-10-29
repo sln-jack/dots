@@ -53,10 +53,16 @@ abbr -a gb git rebase
 abbr -a gbi git rebase -i
 abbr -a gbc git rebase --continue
 abbr -a gu git restore --staged
-abbr -a gy git stash -u
+abbr -a gy git stash
+abbr -a gyu git stash -u
 abbr -a gyp git stash pop
+abbr -a gya git stash apply
+abbr -a gyr git reset --merge
 abbr -a gyl git stash list
 abbr -a gys git stash show -p
+abbr -a gwa git worktree add
+abbr -a gwl git worktree list
+abbr -a gwd git worktree remove
 
 # Reload config
 function reload
