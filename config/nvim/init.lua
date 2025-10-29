@@ -12,15 +12,13 @@ local F = require('framework')
 - [x] Copy github branch/permalink to selected line / range
 - [x] fish `mksh path/to/scriptname`
 - [x] https://github.com/nvim-treesitter/nvim-treesitter-textobjects
-- [ ] Try telescope live grep args https://github.com/nvim-telescope/telescope-live-grep-args.nvim
+- [x] Patch treesitter-textobjects to get @block.inner/outer working for c/cpp/c#
+- [x] Telescope live grep args
+- [~] Setup neogit + diffview
+- [ ] Setup C# LSP
 - [ ] Focus active file and collapse all others when toggling tree 
 - [ ] `:help nvim-treesitter-incremental-selection-mod`
-- [ ] Setup C# LSP
-- [ ] Setup neogit + diffview
 - [ ] Try remote-ssh.nvim <https://neovimcraft.com/plugin/inhesrom/remote-ssh.nvim/>
-- [ ] Patch treesitter-textobjects to get @block.inner/outer working for c/cpp/c#
-  - https://github.com/nvim-treesitter/nvim-treesitter-textobjects/pull/318/files
-  - https://github.com/nvim-treesitter/nvim-treesitter-textobjects/pull/796/files
 - [ ] https://github.com/davidmh/cmp-nerdfonts/blob/main/lua/cmp_nerdfonts/source.lua
 
 --]]
@@ -35,6 +33,10 @@ F.setup {
       ['<misc3>'] = '<f8>',
     },
     binds = {
+      [{'Git status', '<main>gs'}] = F.git.ui,
+      [{'Git log',    '<main>gl'}] = F.git.ui.with({'log'}),
+      [{'Git diff',   '<main>gd'}] = F.git.ui.with({'diff'}),
+
       -------- Files -------------------------------------------------------------------------------------------
 
       [{'Find file (root)', '<main>f'}] = F.pick.file.with({ dir = F.project.root }),
@@ -42,6 +44,8 @@ F.setup {
 
       [{'Prev buffer', '<main><tab>'}] = F.edit.with('#'),
       [{'Pick buffer', '<main>`'}]     = F.pick.buffer,
+
+      [{'Notifs', '<main>n'}] = F.pick.notification,
 
       -------- Grep --------------------------------------------------------------------------------------------
 
@@ -56,7 +60,7 @@ F.setup {
       -------- LSP ---------------------------------------------------------------------------------------------
 
       [{'Rename', '<lang><lang>'}] = F.lsp.rename,
-      [{'Hover',  '<lang><tab>'}]  = F.lsp.hover,
+      [{'Hover',  '<lang><tab>'}]  = F.when({lang = {'c', 'cpp'}}, F.cmd.with(':LspClangdSwitchSourceHeader')),
       [{'Action', '<lang>a'}]      = F.lsp.action,
       [{'Hints',  '<lang>h'}]      = F.lsp.toggle_hints,
 

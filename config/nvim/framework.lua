@@ -204,6 +204,10 @@ F.pick = {
   buffer = function()
     require('telescope.builtin').buffers()
   end,
+
+  notification = function()
+    require('telescope').extensions.notify.notify()
+  end,
 }
 
 -- GREP ------------------------------------------------------------------------------------------------------
@@ -214,6 +218,7 @@ F.pick = {
 --   * hidden: search hidden files
 --   * gitignored: search gitignored files
 F.grep = lazy(function(opts)
+  local t = require('telescope')
   local tb = require('telescope.builtin')
 
   opts = opts or {}
@@ -237,7 +242,7 @@ F.grep = lazy(function(opts)
     if opts.hidden     then table.insert(args, '--hidden') end
     if opts.gitignored then table.insert(args, '--no-ignore') end
 
-    tb.live_grep({
+    t.extensions.live_grep_args.live_grep_args({
       prompt_title    = string.format('Ripgrep (%s) %s', dir, table.concat(args, ' ')),
       cwd             = vim.fn.expand(dir),
       default_text    = selection,
@@ -284,7 +289,7 @@ F.lsp = {
 
   -- Rename symbol
   rename = function()
-    require('live-rename').map { insert = true }
+    require('live-rename').rename { insert = true }
   end,
 
   -- Go to definition
@@ -399,6 +404,10 @@ F.lsp = {
 -- Copy web permalink to selected line(s).
 --   * branch: copy link to a specific branch
 F.git = {
+  ui = lazy(function(opts)
+    require('neogit').open(opts or {})
+  end),
+
   permalink = lazy(function(opts)
     opts = opts or {}
 

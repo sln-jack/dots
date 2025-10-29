@@ -20,7 +20,11 @@ local plugins = {
   {
     'folke/tokyonight.nvim',
     priority = 1000,
-    opts = { on_colors = function(colors) colors.border = colors.white end },
+    opts = {
+      on_colors = function(colors)
+        colors.border = colors.white
+      end,
+    },
     init = function() vim.cmd.colorscheme 'tokyonight-night' end,
   },
 
@@ -32,12 +36,19 @@ local plugins = {
       'nvim-lua/plenary.nvim',
       { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
       { 'nvim-telescope/telescope-ui-select.nvim' },
+      { 'nvim-telescope/telescope-live-grep-args.nvim' },
+      { 'rcarriga/nvim-notify' },
       { 'nvim-tree/nvim-web-devicons', enabled = true },
     },
     config = function()
       local telescope = require('telescope')
+      local livegrep = require('telescope-live-grep-args.actions')
       telescope.load_extension('fzf')
       telescope.load_extension('ui-select')
+      telescope.load_extension('live_grep_args')
+      telescope.load_extension('notify')
+
+
       telescope.setup {
         defaults = {
           sorting_strategy = 'ascending',
@@ -52,7 +63,7 @@ local plugins = {
         },
         pickers = {
           find_files = { follow = true },
-        }
+        },
       }
     end,
   },
@@ -62,7 +73,7 @@ local plugins = {
     'nvim-treesitter/nvim-treesitter',
     dependencies = {
       { 'nvim-treesitter/nvim-treesitter-context', opts = {} },
-      { 'nvim-treesitter/nvim-treesitter-textobjects' },
+      { 'foltik/nvim-treesitter-textobjects' },
     },
     build = ':TSUpdate',
     main = 'nvim-treesitter.configs',
@@ -79,11 +90,14 @@ local plugins = {
             ['af'] = '@function.outer',
             ['if'] = '@function.inner',
 
-            ['ac'] = '@class.outer',
-            ['ic'] = '@class.inner',
+            ['as'] = '@class.outer',
+            ['is'] = '@class.inner',
 
-            ['as'] = '@block.outer',
-            ['is'] = '@block.inner',
+            ['ab'] = '@block.outer',
+            ['ib'] = '@block.inner',
+
+            ['ac'] = '@call.outer',
+            ['ic'] = '@call.inner',
 
             ['ap'] = '@parameter.outer',
             ['ip'] = '@parameter.inner',
@@ -94,19 +108,36 @@ local plugins = {
             ['ar'] = '@assignment.rhs',
             ['ir'] = '@assignment.rhs',
           },
+          selection_modes = {
+            ['@function.inner'] = 'V',
+            ['@function.outer'] = 'V',
+            ['@block.inner'] = 'V',
+            ['@block.outer'] = 'V',
+            ['@class.inner'] = 'V',
+            ['@class.outer'] = 'V',
+          },
         },
         move = {
           enable = true,
           set_jumps = true,
           goto_next_start = {
             [']f'] = '@function.outer',
-            [']c'] = '@class.outer',
-            [']s'] = '@block.outer',
+            [']s'] = '@class.outer',
+            [']b'] = '@block.inner',
           },
           goto_previous_start = {
             ['[f'] = '@function.outer',
-            ['[c'] = '@class.outer',
-            ['[s'] = '@block.outer',
+            ['[s'] = '@class.outer',
+            ['[b'] = '@block.inner',
+          },
+        },
+        swap = {
+          enable = true,
+          swap_next = {
+            ['\\]'] = '@parameter.inner',
+          },
+          swap_previous = {
+            ['\\['] = '@parameter.inner',
           },
         },
         lsp_interop = {
@@ -157,8 +188,15 @@ local plugins = {
         group = vim.api.nvim_create_augroup('lsp-attach', { clear = true }),
         callback = function(event)
           local client = vim.lsp.get_client_by_id(event.data.client_id)
+          local bufnr = event.buf
+          local name = vim.api.nvim_buf_get_name(bufnr)
           local supports = function(method)
             return client and client.supports_method(method, { bufnr = event.buf })
+          end
+
+          local is_fake_file = name:match('^%w%a+://') ~= nil  -- diff://, git:// etc.
+          if is_fake_file then
+            return
           end
 
           -- Toggle inlay hints
@@ -253,6 +291,15 @@ local plugins = {
 
   -- Git
   { 'lewis6991/gitsigns.nvim', opts = {} },
+  {
+    "NeogitOrg/neogit",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "sindrets/diffview.nvim",
+      "nvim-telescope/telescope.nvim",
+    },
+    opts = {}
+  },
 
   -- UI
   { 'nvim-lualine/lualine.nvim', opts = { 
@@ -275,6 +322,20 @@ local plugins = {
   } },
   { 'mikavilpas/yazi.nvim', event = 'VeryLazy', dependencies = { 'nvim-lua/plenary.nvim' }, opts = {} },
   { 'lewis6991/satellite.nvim', opts = {} },
+  {
+    'rcarriga/nvim-notify',
+    event = 'VeryLazy',
+    config = function()
+      local notify = require('notify')
+      notify.setup {
+        render = 'wrapped-compact',
+        stages = 'slide',
+        timeout = 2000,
+        background_colour = 'None',
+      }
+      vim.notify = notify
+    end,
+  },
   { 'isrothy/neominimap.nvim', lazy = false, keys = { { '<leader>m', '<cmd>Neominimap WinToggle<cr>' } },
     init = function()
       vim.g.neominimap = {
