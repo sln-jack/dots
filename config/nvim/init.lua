@@ -95,8 +95,8 @@ F.setup {
       end,
 
       [{ 'Pick project', '<main>pp' }] = F.pick.dir.with({ dir = '~/code', depth = 1 }),
-      [{ 'Edit dotfiles', '<main>pd' }] = F.pick.file.with({ dir = '~/code/dots' }),
-      [{ 'Edit TODO.md', '<main>pt' }] = F.edit.with('~/notes/TODO.md'),
+      [{ 'Edit dotfiles', '<main>pd' }] = F.pick.file.with({ dir = '~/.dots' }),
+      [{ 'Edit TODO.md', '<main>pt' }] = F.edit.with('~/TODO.md'),
 
       -------- Window ------------------------------------------------------------------------------------------
 

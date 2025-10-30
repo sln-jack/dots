@@ -1,0 +1,6 @@
+#!/usr/bin/env fish
+set DOTS $(dirname $(realpath $(status -f)))
+set -e PATH[(contains -i $DOTS/bin $PATH)]
+set -e PATH[$(contains -i $HOME/.cargo/bin $PATH)]
+set -u LD_LIBRARY_PATH
+exec bash

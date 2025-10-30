@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+DOTS=$(dirname $(readlink -f "$0"))
+export PATH="$DOTS/bin:$HOME/.cargo/bin:$PATH"
+export LD_LIBRARY_PATH=$DOTS/lib
+exec fish

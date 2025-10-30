@@ -8,12 +8,13 @@ set -x VISUAL nvim
 # Hooks
 starship init fish | .
 direnv hook fish | .
+zoxide init fish | .
 
-alias ls="exa"
-alias ll="exa -lh"
-alias lla="exa -lah"
-alias llt="exa -lah --sort time"
-alias lt="exa -lTh"
+alias ls="eza"
+alias ll="eza -lh"
+alias lla="eza -lah"
+alias llt="eza -lah --sort time"
+alias lt="eza -lTh"
 
 alias ssh='ssh -F $HOME/.ssh/config'
 alias scp='scp -F $HOME/.ssh/config'
@@ -70,7 +71,7 @@ abbr -a gwd git worktree remove
 
 # Reload config
 function reload
-    ~/code/dots/bootstrap.sh
+    ~/.dots/bootstrap.sh
     for config in ~/.config/fish/**/*.fish
         . $config
     end
@@ -105,20 +106,6 @@ end
 # Kill process
 function pk
     ps x | rg -v "rg $argv" | rg $argv | awk '{print $1}' | xargs kill
-end
-
-# Fasd
-function _fasd -e fish_postexec
-    if test $status -eq 0
-        set input (fasd --sanitize "$argv")
-        set input (string replace '~' $HOME "$input")
-        fasd --proc (string split ' ' $input)
-    end
-end
-function z
-    set dir (fasd -dlR $argv | head -n 1)
-    test -z $dir && return
-    test -d $dir && cd $dir
 end
 
 function fish_user_key_bindings

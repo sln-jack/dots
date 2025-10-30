@@ -76,14 +76,6 @@
     sort = version:refname
 
 
-# Use `delta` for displaying diffs
-[core]
-    pager = delta
-[interactive]
-    diffFilter = delta --color-only
-[delta]
-    navigate = true
-    dark = true
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
