@@ -1,4 +1,4 @@
--- PLUGINS AND VIM SETUP -----------------------------------------------------------------------------------------
+
 -- This file contains plugin setup and vim configuration that rarely changes
 -- Lazy.nvim doesn't support re-eval, so this is only loaded once on startup
 
@@ -183,6 +183,9 @@ local plugins = {
       })
       vim.lsp.enable('lua_ls')
 
+      -- C#
+      vim.lsp.enable('roslyn_ls')
+
       -- LSP attach hooks
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('lsp-attach', { clear = true }),
@@ -218,6 +221,42 @@ local plugins = {
           end
         end,
       })
+    end,
+  },
+  -- DAP
+  {
+    'mfussenegger/nvim-dap',
+    dependencies = {
+      'nvim-neotest/nvim-nio',
+      'rcarriga/nvim-dap-ui',
+      'theHamsta/nvim-dap-virtual-text',
+    },
+    config = function()
+      local dap = require('dap')
+      local dapui = require('dapui')
+      local daptext = require('nvim-dap-virtual-text')
+
+      -- C#
+      dap.adapters.netcoredbg = {
+        type = 'executable',
+        command = vim.fn.exepath('netcoredbg'),
+        args = {'--interpreter=vscode'},
+      }
+      dap.configurations.cs = {
+        {
+          type = 'netcoredbg',
+          name = 'attach',
+          request = 'attach',
+          processId = require('dap.utils').pick_process,
+        },
+      }
+
+      dapui.setup()
+      daptext.setup()
+
+      dap.listeners.after.event_initialized['dapui_config'] = function() dapui.open() end
+      dap.listeners.before.event_terminated['dapui_config'] = function() dapui.close() end
+      dap.listeners.before.event_exited['dapui_config'] = function() dapui.close() end
     end,
   },
 

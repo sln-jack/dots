@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 DOTS=$(dirname $(readlink -f "$0"))
 export PATH="$DOTS/bin:$HOME/.cargo/bin:$PATH"
-export LD_LIBRARY_PATH=$DOTS/lib
+export LD_LIBRARY_PATH="$DOTS/lib:$LD_LIBRARY_PATH"
+export DOTNET_ROOT_NODOTS=$DOTNET_ROOT
+export DOTNET_ROOT=$DOTS/pkgs/dotnet
 exec fish

@@ -2,5 +2,7 @@
 set DOTS $(dirname $(realpath $(status -f)))
 set -e PATH[(contains -i $DOTS/bin $PATH)]
 set -e PATH[$(contains -i $HOME/.cargo/bin $PATH)]
-set -u LD_LIBRARY_PATH
+set -e LD_LIBRARY_PATH[$(contains -i $DOTS/lib $LD_LIBRARY_PATH)]
+set -x DOTNET_ROOT $DOTNET_ROOT_NODOTS
+set -e DOTNET_ROOT_NODOTS
 exec bash

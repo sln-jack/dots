@@ -398,6 +398,31 @@ F.lsp = {
   end),
 }
 
+F.dap = {
+  start = F.cmd.with(':DapNew'),
+  stop = function() require('dap').terminate() end,
+  detach = function()
+    local dap = require('dap')
+    dap.disconnect({restart = false, terminateDebugee = false})
+    dap.close()
+  end,
+
+  continue = function() require('dap').continue() end,
+  continue_to_cursor = function() require('dap').run_to_cursor() end,
+
+  step_over = function() require('dap').step_over() end,
+  step_into = function() require('dap').step_into() end,
+  step_out  = function() require('dap').step_out()  end,
+
+  breakpoint = function() require('dap').toggle_breakpoint() end,
+  breakpoint_condition = function()
+    local cond = vim.fn.input('Condition: ')
+    require('dap').set_breakpoint(cond)
+  end,
+
+  repl = function() require('dap').repl.toggle() end,
+}
+
 
 -- GIT -----------------------------------------------------------------------------------------------------------
 

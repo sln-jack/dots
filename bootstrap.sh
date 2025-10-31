@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 cd $(dirname $0)
+ROOT=$PWD
+PKGS=$ROOT/pkgs
+TEMP=$ROOT/temp
 
 #------ Probe ------------------------------------------------------------------------------------------------
 echo "Probing environment..."
@@ -78,9 +81,6 @@ else
     echo "Unsupported OS!"
 fi
 
-
-PKGS=$PWD/pkgs
-TEMP=$PWD/temp
 mkdir -p $PKGS $TEMP
 
 dirty() {
@@ -208,15 +208,15 @@ PATH="$HOME/.cargo/bin:$PATH"
 
 dotnet!() {
     if $LINUX; then
-        local ver=9.0.306 dir=$PKGS/dotnet
-        if dirty $ver $dir; then
+        local ver10=10.0.100-rc.2.25502.107 ver9=9.0.306 ver8=8.0.415 dir=$PKGS/dotnet
+        if dirty $ver10 $dir; then
             rm -rf $dir
-            mkdir -p $dir
-            curl -L https://builds.dotnet.microsoft.com/dotnet/Sdk/${ver}/dotnet-sdk-${ver}-linux-x64.tar.gz \
-                | tar xzf - -C $dir
             mkdir -p $dir/bin
-            ln -sf $dir/dotnet $dir/bin/dotnet
-            undirty $ver $dir
+            curl -L https://builds.dotnet.microsoft.com/dotnet/Sdk/${ver8}/dotnet-sdk-${ver8}-linux-x64.tar.gz | tar xzf - -C $dir
+            curl -L https://builds.dotnet.microsoft.com/dotnet/Sdk/${ver9}/dotnet-sdk-${ver9}-linux-x64.tar.gz | tar xzf - -C $dir
+            curl -L https://builds.dotnet.microsoft.com/dotnet/Sdk/${ver10}/dotnet-sdk-${ver10}-linux-x64.tar.gz | tar xzf - -C $dir
+            ln -sfr $dir/dotnet $dir/bin/
+            undirty $ver10 $dir
         fi
     fi
 }
@@ -394,32 +394,30 @@ luals() {
 }
 luals
 
-csharp-language-server() {
-    if $LINUX; then
-        local ver=0.19.0 dir=$PKGS/csharp-language-server
-        if dirty $ver $dir; then
-            rm -rf $dir
-            mkdir -p $dir/bin
-            curl -L https://github.com/razzmatazz/csharp-language-server/archive/refs/tags/0.19.0.tar.gz \
-                | tar xzf - -C $TEMP
+roslyn-ls() {
+    local ver=2.93.22 dir=$PKGS/roslyn-ls
+    if dirty $ver $dir; then
+        rm -rf $dir
 
-            pushd $TEMP/csharp-language-server-$ver
-            dotnet build -c Release -p:NuGetAudit=false
-            mv src/CSharpLanguageServer/bin/Release/net9.0 $dir/lib
-            popd
+        rm -rf $TEMP/roslyn || true
+        git clone https://github.com/dotnet/roslyn $TEMP/roslyn \
+            --depth 1 --branch VSCode-CSharp-$ver
 
-            cat >$dir/bin/csharp-language-server <<'EOF'
-#!/usr/bin/env bash
-SCRIPT_DIR=$(realpath $(dirname $(readlink -f $0)))
-exec dotnet "$SCRIPT_DIR/../lib/CSharpLanguageServer.dll" "$@"
-EOF
-            chmod +x $dir/bin/csharp-language-server
+        pushd $TEMP/roslyn/src/LanguageServer/Microsoft.CodeAnalysis.LanguageServer
+        dotnet publish -c Release -o $dir \
+            -p:UseAppHost=true \
+            -p:IncludeSymbols=false \
+            -p:DebugType=None \
+            -p:EnableWindowsTargeting=false
+        mkdir -p $dir/bin
+        ln -sfr $dir/Microsoft.CodeAnalysis.LanguageServer $dir/bin/
+        popd
 
-            undirty $ver $dir
-        fi
+        undirty $ver $dir
     fi
 }
-csharp-language-server
+roslyn-ls
+
 
 netcoredbg() {
     if $LINUX; then
@@ -439,7 +437,7 @@ netcoredbg() {
             cmake --install $build
 
             mkdir $dir/bin
-            ln -sf $dir/netcoredbg $dir/bin
+            ln -sfr $dir/netcoredbg $dir/bin/
 
             undirty $ver $dir
         fi
@@ -490,12 +488,11 @@ rm -rf $TEMP
 
 echo -e "\nSymlinking packages..."
 
-DIRS="bin lib"
-for pkg in $PKGS/*; do
-    for dir in $DIRS; do
-        mkdir -p $dir
+for dir in {bin,lib}; do
+    rm -rf $ROOT/$dir && mkdir $ROOT/$dir
+    for pkg in $PKGS/*; do
         if [ -d $pkg/$dir ]; then
-            ln -sf $(realpath $pkg/$dir/*) $dir
+            ln -sfr $pkg/$dir/* $ROOT/$dir/
         fi
     done
 done

@@ -28,9 +28,9 @@ F.setup {
     aliases = {
       ['<main>'] = '<space>',
       ['<lang>'] = '\\',
-      ['<misc1>']  = '<f6>',
-      ['<misc2>'] = '<f7>',
-      ['<misc3>'] = '<f8>',
+      ['<proj>']  = '<f6>',
+      ['<ctx>'] = '<f7>',
+      ['<misc>'] = '<f8>',
     },
     binds = {
       [{'Git status', '<main>gs'}] = F.git.ui,
@@ -77,14 +77,33 @@ F.setup {
       [{'Permalink',      {'n','v'}, '<lang>l'}] = F.git.permalink,
       [{'Permalink main', {'n','v'}, '<lang>L'}] = F.git.permalink.with({ branch = 'main' }),
 
-      --Search
+      -------- DAP ---------------------------------------------------------------------------------------------
+
+      [{'Start',  '<ctx>d'}] = F.dap.start,
+      [{'Detach', '<ctx>q'}] = F.dap.disconnect,
+      [{'Stop',   '<ctx>Q'}] = F.dap.stop,
+      [{'REPL',   '<ctx>r'}] = F.dap.repl,
+
+      [{'Continue',           '<ctx>c'}] = F.dap.continue,
+      [{'Continue to cursor', '<ctx>C'}] = F.dap.continue_to_cursor,
+
+      [{'Step over', '<ctx>n'}] = F.dap.step_over,
+      [{'Step into', '<ctx>i'}] = F.dap.step_in,
+      [{'Step out',  '<ctx>o'}] = F.dap.step_out,
+
+      [{'Breakpoint',               '<ctx>b'}] = F.dap.breakpoint,
+      [{'Breakpoint (conditional)', '<ctx>B'}] = F.dap.breakpoint_condition,
+
+      -------- Search ------------------------------------------------------------------------------------------
+
       [{'Resume search',      '<main>sr'}] = function() require('telescope.builtin').resume() end,
       [{'Search help',        '<main>sh'}] = function() require('telescope.builtin').help_tags() end,
       [{'Search keymaps',     '<main>sk'}] = function() require('telescope.builtin').keymaps() end,
       [{'Search telescope',   '<main>st'}] = function() require('telescope.builtin').builtin() end,
       [{'Search diagnostics', '<main>sq'}] = function() require('telescope.builtin').diagnostics() end,
 
-      -- Project
+      -------- Project -----------------------------------------------------------------------------------------
+
       [{ 'Edit init.lua', '<main>pc' }] = F.edit.with(vim.fn.stdpath('config') .. '/init.lua'),
       [{ 'Edit project init.lua', '<main>pC' }] = function()
         local project = F.project.root()
@@ -95,8 +114,8 @@ F.setup {
       end,
 
       [{ 'Pick project', '<main>pp' }] = F.pick.dir.with({ dir = '~/code', depth = 1 }),
-      [{ 'Edit dotfiles', '<main>pd' }] = F.pick.file.with({ dir = '~/.dots' }),
-      [{ 'Edit TODO.md', '<main>pt' }] = F.edit.with('~/TODO.md'),
+      [{ 'Edit dotfiles', '<main>pd' }] = F.pick.file.with({ dir = '~/code/dots' }),
+      [{ 'Edit TODO.md', '<main>pt' }] = F.edit.with('~/notes/TODO.md'),
 
       -------- Window ------------------------------------------------------------------------------------------
 
