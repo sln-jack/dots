@@ -363,8 +363,8 @@ codex() {
     if dirty $ver $dir; then
         mkdir -p $dir/bin
         curl -L https://github.com/openai/codex/releases/download/rust-v${ver}/codex-${ARCH1}.tar.gz \
-            -o $dir/bin/codex
-        chmod +x $dir/bin/codex
+            | tar -xzf - -C $TEMP
+        mv $TEMP/codex-$ARCH1 $dir/bin/codex
         undirty $ver $dir
     fi
 }
