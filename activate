@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 DOTS=$(dirname $(readlink -f "$0"))
-export PATH="$DOTS/bin:$HOME/.cargo/bin:$PATH"
-export LD_LIBRARY_PATH="$DOTS/lib:$LD_LIBRARY_PATH"
+PREFIX=$DOTS/prefix
+
+export PATH="$PREFIX/bin:$HOME/.cargo/bin:$PATH"
+export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
+export XDG_CONFIG_HOME=$PREFIX/config
+
+export RUSTUP_HOME_NODOTS=$RUSTUP_HOME
+export CARGO_HOME_NODOTS=$CARGO_HOME
 export DOTNET_ROOT_NODOTS=$DOTNET_ROOT
-export DOTNET_ROOT=$DOTS/pkgs/dotnet
+export STARSHIP_CONFIG=$PREFIX/config/starship.toml
+
+export RUSTUP_HOME=$PREFIX/pkgs/rust/rustup
+export CARGO_HOME=$PREFIX/pkgs/rust
+export DOTNET_ROOT=$PREFIX/pkgs/dotnet
+
 exec fish

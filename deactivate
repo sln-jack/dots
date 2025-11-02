@@ -1,8 +1,18 @@
 #!/usr/bin/env fish
 set DOTS $(dirname $(realpath $(status -f)))
-set -e PATH[(contains -i $DOTS/bin $PATH)]
-set -e PATH[$(contains -i $HOME/.cargo/bin $PATH)]
-set -e LD_LIBRARY_PATH[$(contains -i $DOTS/lib $LD_LIBRARY_PATH)]
+set PREFIX $DOTS/prefix
+
+set -e PATH[(contains -i $PREFIX/bin $PATH)]
+set -e LD_LIBRARY_PATH[$(contains -i $PREFIX/lib $LD_LIBRARY_PATH)]
+set -e XDG_CONFIG_HOME
+
+set -x RUSTUP_HOME $RUSTUP_HOME_NODOTS
+set -x CARGO_HOME $CARGO_HOME_NODOTS
 set -x DOTNET_ROOT $DOTNET_ROOT_NODOTS
+
+set -e RUSTUP_HOME_NODOTS
+set -e CARGO_HOME_NODOTS
 set -e DOTNET_ROOT_NODOTS
+set -e STARSHIP_CONFIG
+
 exec bash

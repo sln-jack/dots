@@ -88,7 +88,7 @@ end
 
 # Make script
 function mksh
-    set file (string join '' $argv[1] '.sh')
+    set file $argv[1]
     echo "#!/usr/bin/env bash" >> $file
     echo "set -euo pipefail" >> $file
     echo "" >> $file

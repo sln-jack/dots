@@ -1,3 +1,2 @@
 # Dotfiles
-
-Less is more.
+All the packages and config to make one of my machines cozy.
