@@ -3,7 +3,7 @@ set -euo pipefail
 
 DOTS=$(dirname $(readlink -f "$0"))
 HOST=$1
-rsync -Pavzr \
+rsync -Pavr \
     --exclude prefix/bin \
     --exclude prefix/lib \
     --exclude prefix/config \
