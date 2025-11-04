@@ -2,7 +2,6 @@
 
 import os, platform, subprocess, shutil, stat
 from pathlib import Path
-from graphlib import TopologicalSorter
 
 #------ Environment ------------------------------------------------------------------------------------------
 
@@ -266,8 +265,19 @@ if __name__ == '__main__':
     print(f'\nProcessing {len(PLAN)} pkgs...')
     PKGS.mkdir(exist_ok=True)
     WORK.mkdir(exist_ok=True)
-    graph = {pkg: DEPS.get(pkg) for pkg in PLAN}
-    for pkg in TopologicalSorter(graph).static_order():
+
+    # Topo sort
+    seen, ordered = set(), []
+    def visit(pkg):
+        if pkg in seen: return
+        seen.add(pkg)
+        for dep in DEPS.get(pkg, ()):
+            visit(dep)
+        ordered.append(pkg)
+    for pkg in PLAN:
+        visit(pkg)
+    # Build
+    for pkg in ordered:
         if pkg in PLAN:
             PLAN[pkg]()
 
