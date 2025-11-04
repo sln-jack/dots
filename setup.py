@@ -124,9 +124,12 @@ def clang(d: Path, v: str):
 
 @pkg()
 def rust(d: Path, v: str):
+    vars = f'RUSTUP_HOME={d}/rustup CARGO_HOME={d}'
     sh(f'curl -L https://static.rust-lang.org/rustup/dist/{triple}/rustup-init -o {WORK}/rustup-init')
     sh(f'chmod +x {WORK}/rustup-init')
     sh(f'RUSTUP_HOME={d}/rustup CARGO_HOME={d} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
+    sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
+    sh(f'{vars} PATH="{d}/bin:$PATH" rustup component remove rust-docs')
 
 @pkg(deps={'cmake'})
 def fish(d: Path, v: str):
