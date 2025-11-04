@@ -85,6 +85,12 @@ def build_cmake(src: Path, prefix: Path, *args, j: int = None, targets: list[str
         for c in components:
             sh(f'{cmake} --install {build} --component {c}')
 
+def build_cargo(d: Path, v: str, crate: str):
+    rust = PKGS/'rust'
+    cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PATH="{rust}/bin:$PATH" cargo'
+    sh(f'{cargo} install {crate}@{v} --locked --root {d}')
+
+
 #------ Toolchains -------------------------------------------------------------------------------------------
 
 @pkg()
@@ -189,10 +195,7 @@ def direnv(d: Path, v: str):
 
 @pkg(deps={'rust'})
 def eza(d: Path, v: str):
-    extract(f'https://github.com/eza-community/eza/archive/refs/tags/v{v}.tar.gz', WORK)
-    rust = PKGS/'rust'
-    cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PATH="{rust}/bin:$PATH" cargo'
-    sh(f'{cargo} install --path {WORK}/eza-{v} --root {d}')
+    build_cargo(d, v, 'eza')
 
 @pkg()
 def ripgrep(d: Path, v: str):
@@ -209,6 +212,10 @@ def fd(d: Path, v: str):
 def sd(d: Path, v: str):
     extract(f'https://github.com/chmln/sd/releases/download/v{v}/sd-v{v}-{triple}.tar.gz', WORK)
     install(WORK/f'sd-v{v}-{triple}/sd', d)
+
+@pkg()
+def dua(d: Path, v: str):
+    build_cargo(d, v, 'dua-cli')
 
 # --- run ----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
@@ -236,6 +243,7 @@ if __name__ == '__main__':
     eza('0.23.4')
     fd('10.3.0')
     sd('1.0.0')
+    dua('2.32.2')
 
     # Coding
     nvim('0.11.4')
