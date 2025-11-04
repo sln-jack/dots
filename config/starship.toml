@@ -16,19 +16,19 @@ format = '[$user](white)@'
 
 [hostname]
 ssh_only = true
-format = '[$hostname](white):'
+format = '[$hostname](bold #f5c2e7):'
 trim_at = '.'
 
 [directory]
 format = "[$path]($style)"
 style = "bold bright-white"
-repo_root_style = "bold bright-purple"
+repo_root_style = "bold #cba6f7"
 truncation_length = 3
 truncate_to_repo = true
 fish_style_pwd_dir_length = 1
 
 [git_branch]
-format = "\\([$branch](bold bright-purple)"
+format = "\\([$branch](bold #cba6f7)"
 [git_status]
 format = "[($conflicted$staged$modified$untracked$stashed)]($white)\\)"
 conflicted = "[!](bold red)"
@@ -39,7 +39,7 @@ stashed    = "⚑"
 
 [direnv]
 disabled = false
-format = ' [$allowed](bold green)'
+format = ' [$allowed](bold #a6e3a1)'
 allowed_msg = '@'
 not_allowed_msg = '🔒'
 
@@ -49,7 +49,7 @@ format = " \\[[$status]($style)\\]"
 
 [cmd_duration]
 min_time = 3_000 # 3sec
-format = ' [$duration](bold yellow)'
+format = ' [$duration](bold #f9e2af)'
 show_notifications = true
 min_time_to_notify = 120_000 # 2min
 notification_timeout = 2_000
