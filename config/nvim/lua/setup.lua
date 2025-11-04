@@ -388,6 +388,10 @@ local plugins = {
       vim.api.nvim_create_autocmd('WinNew', { callback = function() pcall(api.win.disable, vim.api.nvim_get_current_win()) end })
     end,
   },
+  {
+    'christoomey/vim-tmux-navigator',
+    options = {},
+  }
 }
 
 -- VIM OPTIONS ---------------------------------------------------------------------------------------------------

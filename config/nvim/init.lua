@@ -126,15 +126,15 @@ F.setup {
       [{'Split horiz',  '<M-->'}] = F.cmd.with(':split'),
       [{'Split vert',   '<M-=>'}] = F.cmd.with(':vsplit'),
 
-      [{'Focus left',  '<M-h>'}] = F.cmd.with(':wincmd h'),
-      [{'Focus right', '<M-l>'}] = F.cmd.with(':wincmd l'),
-      [{'Focus down',  '<M-j>'}] = F.cmd.with(':wincmd j'),
-      [{'Focus up',    '<M-k>'}] = F.cmd.with(':wincmd k'),
+      [{'Focus left',  '<M-h>'}] = F.cmd.with(':TmuxNavigateLeft'),
+      [{'Focus down',  '<M-j>'}] = F.cmd.with(':TmuxNavigateDown'),
+      [{'Focus up',    '<M-k>'}] = F.cmd.with(':TmuxNavigateUp'),
+      [{'Focus right', '<M-l>'}] = F.cmd.with(':TmuxNavigateRight'),
 
       [{'Move left',  '<M-S-h>'}] = F.cmd.with(':wincmd H'),
-      [{'Move right', '<M-S-l>'}] = F.cmd.with(':wincmd L'),
       [{'Move down',  '<M-S-j>'}] = F.cmd.with(':wincmd J'),
       [{'Move up',    '<M-S-k>'}] = F.cmd.with(':wincmd K'),
+      [{'Move right', '<M-S-l>'}] = F.cmd.with(':wincmd L'),
 
       [{'Resize left',  '<M-a>'}] = function() require('smart-splits').resize_left() end,
       [{'Resize down',  '<M-s>'}] = function() require('smart-splits').resize_down() end,
