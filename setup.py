@@ -159,9 +159,10 @@ def nvim(d: Path, v: str):
 
 @pkg()
 def codex(d: Path, v: str):
-    extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-{triple}.tar.gz', WORK)
-    install(WORK/f'codex-{triple}', d)
-    sh(f'mv {d}/bin/codex-{triple} {d}/bin/codex')
+    tag = triple.replace('gnu', 'musl')
+    extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-{tag}.tar.gz', WORK)
+    install(WORK/f'codex-{tag}', d)
+    sh(f'mv {d}/bin/codex-{tag} {d}/bin/codex')
 
 @pkg()
 def lua_ls(d: Path, v: str):
