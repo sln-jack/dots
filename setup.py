@@ -27,7 +27,7 @@ print(f'  System: {sys}-{arch}')
 #------ Primitives -------------------------------------------------------------------------------------------
 
 def sh(c: str, cwd: Path = None):
-    subprocess.run(['bash', '-euo', 'pipefail', '-c', c], check=True, cwd=cwd)
+    subprocess.run(['bash', '--noprofile', '--norc', '-euo', 'pipefail', '-c', c], check=True, cwd=cwd)
 
 PLAN = {}
 DEPS = {}
@@ -71,10 +71,15 @@ def build_autotools(src: Path, prefix: Path, *args):
     sh(f'./configure --prefix={prefix} {" ".join(args)}', cwd=src)
     sh(f'make -j && make install', cwd=src)
 
+def build_automake(src: Path, prefix: Path, *args):
+    automake = PKGS/'automake'
+    sh(f'cd {src} && PATH="${automake}/bin:$PATH" autoreconf --install')
+    build_autotools(src, prefix, *args)
+
 def build_cmake(src: Path, prefix: Path, *args, j: int = None, targets: list[str] = []):
     components = targets
     targets = ' '.join(f'--target {t}' for t in targets)
-    cmake = PKGS/'cmake'/'bin'/'cmake'
+    cmake = PKGS/'cmake/bin/cmake'
     build = WORK/f'{prefix.name}-build'
     sh(f'{cmake} -S {src} -B {build} -DCMAKE_INSTALL_PREFIX={prefix} -DCMAKE_BUILD_TYPE=Release {" ".join(args)}')
     sh(f'{cmake} --build {build} {targets} -j{j or ""}')
@@ -91,6 +96,19 @@ def build_cargo(d: Path, v: str, crate: str):
 
 
 #------ Toolchains -------------------------------------------------------------------------------------------
+
+@pkg()
+def automake(d: Path, v: str):
+    libtool_v = '2.5.4'
+    extract(f'https://mirror.us-midwest-1.nexcess.net/gnu/libtool/libtool-{libtool_v}.tar.xz', WORK)
+    build_autotools(WORK/f'libtool-{libtool_v}', d)
+
+    autoconf_v = '2.72'
+    extract(f'https://ftp.gnu.org/gnu/autoconf/autoconf-{autoconf_v}.tar.xz', WORK)
+    build_autotools(WORK/f'autoconf-{autoconf_v}', d)
+
+    extract(f'https://ftp.gnu.org/gnu/automake/automake-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'automake-{v}', d, f'PATH="{d}/bin:$PATH"')
 
 @pkg()
 def cmake(d: Path, v: str):
@@ -219,11 +237,59 @@ def sd(d: Path, v: str):
 def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
 
+@pkg()
+def libxml2(d: Path, v: str):
+    vv = '.'.join(v.split('.')[:2]) # 2.15.1 -> 2.15
+    extract(f'https://download.gnome.org/sources/libxml2/{vv}/libxml2-{v}.tar.xz', WORK)
+    build_autotools(
+        WORK/f'libxml2-{v}', d, 
+        'CFLAGS="-fPIC"',
+        '--without-python --without-docbook --without-icu',
+        '--disable-shared --enable-static',
+    )
+
+@pkg(deps={'libxml2'})
+def wireshark(d: Path, v: str):
+    extract(f'https://2.na.dl.wireshark.org/src/wireshark-{v}.tar.xz', WORK)
+    disable = [f'-DBUILD_{tool}=OFF' for tool in [
+        'wireshark','rawshark','sharkd','tfshark','capinfos','editcap',
+        'mergecap','reordercap','text2pcap','randpkt','randpktdump',
+        'mmdbresolve','ciscodump','sshdump','wifidump','udpdump',
+        'androiddump','dpauxmon','sdjournal','captype'
+    ]]
+    build_cmake(
+        WORK/f'wireshark-{v}', d,
+        f'-DLIBXML2_INCLUDE_DIR={PKGS}/libxml2/include/libxml2 -DLIBXML2_LIBRARY={PKGS}/libxml2/lib/libxml2.a',
+        '-DENABLE_EXTCAP=OFF',
+        '-DENABLE_PLUGINS=OFF'
+        '-DBUILD_tshark=ON',
+        '-DBUILD_dumpcap=ON',
+        *disable,
+    )
+
+@pkg(deps={'wireshark'})
+def termshark(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux_x64', ('darwin','arm64'):'MacOS_arm64',}[(sys, arch)]
+    extract(f'https://github.com/gcla/termshark/releases/download/v{v}/termshark_{v}_{tag}.tar.gz', WORK)
+    install(WORK/f'termshark_{v}_{tag}/termshark', d)
+
+@pkg()
+def tcpreplay(d: Path, v: str):
+    extract(f'https://github.com/appneta/tcpreplay/releases/download/v{v}/tcpreplay-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'tcpreplay-{v}', d)
+
+@pkg(deps={'automake'})
+def vde2(d: Path, v: str):
+    extract(f'https://github.com/virtualsquare/vde-2/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_automake(WORK/f'vde-2-{v}', d)
+
+
 # --- run ----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     print('\nAdding packages: base')
 
     # Toolchains
+    automake('1.18.1')
     python('3.14.0')
     if sys=='linux': clang('21.1.0')
     cmake('3.31.9')
@@ -253,6 +319,13 @@ if __name__ == '__main__':
     lua_ls('3.15.0')
     # AI
     codex('0.52.0')
+
+    # Networking
+    libxml2('2.15.1')
+    wireshark('4.6.0')
+    termshark('2.4.0')
+    tcpreplay('4.5.1')
+    vde2('2.3.3')
 
     # Load extensions
     ext = ROOT/'setup.d'
@@ -307,6 +380,7 @@ if __name__ == '__main__':
         conf('ghostty.conf', 'ghostty/config')
         conf('neovide.toml', 'neovide/config.toml')
         conf('aerospace.toml', 'aerospace/aerospace.toml')
+    sh(f'mkdir -p {PREFIX}/config/codex')
     sh(f'ln -s ~/.config/* {PREFIX}/config/ 2>/dev/null || true')
 
     print('Cleaning up...')
