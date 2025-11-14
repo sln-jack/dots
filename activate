@@ -9,10 +9,12 @@ export XDG_CONFIG_HOME=$PREFIX/config
 export RUSTUP_HOME_NODOTS=$RUSTUP_HOME
 export CARGO_HOME_NODOTS=$CARGO_HOME
 export DOTNET_ROOT_NODOTS=$DOTNET_ROOT
-export STARSHIP_CONFIG=$PREFIX/config/starship.toml
 
 export RUSTUP_HOME=$PREFIX/pkgs/rust/rustup
 export CARGO_HOME=$PREFIX/pkgs/rust
 export DOTNET_ROOT=$PREFIX/pkgs/dotnet
+
+export STARSHIP_CONFIG=$PREFIX/config/starship.toml
+export CODEX_HOME=$PREFIX/codex
 
 exec fish

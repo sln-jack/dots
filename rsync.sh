@@ -8,7 +8,11 @@ rsync -Pavr \
     --exclude prefix/lib \
     --exclude prefix/config \
     --exclude prefix/work \
+    --exclude prefix/codex/log \
+    --exclude prefix/codex/sessions \
+    --exclude prefix/codex/history.jsonl \
+    --exclude prefix/codex/config.toml \
     --delete \
     $DOTS/ $HOST:~/.jack/
 
-ssh $HOST bash -c '~/.jack/setup.py'
+ssh $HOST bash --noprofile --norc -c '~/.jack/setup.py'
