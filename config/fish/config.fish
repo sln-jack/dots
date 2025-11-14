@@ -16,10 +16,6 @@ alias lla="eza -lah"
 alias llt="eza -lah --sort time"
 alias lt="eza -lTh"
 
-alias ssh='ssh -F $HOME/.ssh/config'
-alias scp='scp -F $HOME/.ssh/config'
-alias rsync='rsync -e "ssh -F $HOME/.ssh/config"'
-
 abbr -a e nvim
 abbr -a y yazi
 
@@ -54,6 +50,7 @@ abbr -a gl3 git log -n3
 abbr -a gcm git commit -m
 abbr -a gcf git commit --fixup
 abbr -a gca git commit --amend --no-edit
+abbr -a gcA git commit --amend
 abbr -a gb git rebase
 abbr -a gbi git rebase -i
 abbr -a gbc git rebase --continue
@@ -106,6 +103,10 @@ end
 # Kill process
 function pk
     ps x | rg -v "rg $argv" | rg $argv | awk '{print $1}' | xargs kill
+end
+
+function utc
+    date +"%Y%m%d-%H:%M:%S.%6N"
 end
 
 function fish_user_key_bindings
