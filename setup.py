@@ -73,7 +73,7 @@ def build_autotools(src: Path, prefix: Path, *args):
 
 def build_automake(src: Path, prefix: Path, *args):
     automake = PKGS/'automake'
-    sh(f'cd {src} && PATH="${automake}/bin:$PATH" autoreconf --install')
+    sh(f'PATH="${automake}/bin:$PATH" autoreconf --install')
     build_autotools(src, prefix, *args)
 
 def build_cmake(src: Path, prefix: Path, *args, j: int = None, targets: list[str] = []):
@@ -98,17 +98,25 @@ def build_cargo(d: Path, v: str, crate: str):
 #------ Toolchains -------------------------------------------------------------------------------------------
 
 @pkg()
+def m4(d: Path, v: str):
+    extract(f'https://ftp.gnu.org/gnu/m4/m4-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'm4-{v}', d)
+
+@pkg(deps={'m4'})
 def automake(d: Path, v: str):
+    m4 = PKGS/'m4'
+    vars = f'PATH="{d}/bin:{m4}/bin:$PATH"'
+
     libtool_v = '2.5.4'
     extract(f'https://mirror.us-midwest-1.nexcess.net/gnu/libtool/libtool-{libtool_v}.tar.xz', WORK)
-    build_autotools(WORK/f'libtool-{libtool_v}', d)
+    build_autotools(WORK/f'libtool-{libtool_v}', d, vars)
 
     autoconf_v = '2.72'
     extract(f'https://ftp.gnu.org/gnu/autoconf/autoconf-{autoconf_v}.tar.xz', WORK)
-    build_autotools(WORK/f'autoconf-{autoconf_v}', d)
+    build_autotools(WORK/f'autoconf-{autoconf_v}', d, vars)
 
     extract(f'https://ftp.gnu.org/gnu/automake/automake-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'automake-{v}', d, f'PATH="{d}/bin:$PATH"')
+    build_autotools(WORK/f'automake-{v}', d, vars)
 
 @pkg()
 def cmake(d: Path, v: str):
@@ -289,6 +297,7 @@ if __name__ == '__main__':
     print('\nAdding packages: base')
 
     # Toolchains
+    m4('1.4.20')
     automake('1.18.1')
     python('3.14.0')
     if sys=='linux': clang('21.1.0')
