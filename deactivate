@@ -5,6 +5,7 @@ set PREFIX $DOTS/prefix
 set -e PATH[(contains -i $PREFIX/bin $PATH)]
 set -e LD_LIBRARY_PATH[$(contains -i $PREFIX/lib $LD_LIBRARY_PATH)]
 set -e XDG_CONFIG_HOME
+set -e XDG_DATA_HOME
 
 set -x RUSTUP_HOME $RUSTUP_HOME_NODOTS
 set -x CARGO_HOME $CARGO_HOME_NODOTS
