@@ -360,7 +360,17 @@ local plugins = {
     filters = { dotfiles = true },
   } },
   { 'mikavilpas/yazi.nvim', event = 'VeryLazy', dependencies = { 'nvim-lua/plenary.nvim' }, opts = {} },
-  { 'lewis6991/satellite.nvim', opts = {} },
+  {
+    'lewis6991/satellite.nvim',
+    opts = {
+      handlers = {
+        -- It lags with too much stuff so we trim it down
+        diagnostic = { min_severity = vim.diagnostic.severity.ERROR },
+        gitsigns = { enable = false },
+        quickfix = { enable = false },
+      }
+    }
+  },
   {
     'rcarriga/nvim-notify',
     event = 'VeryLazy',
@@ -456,10 +466,8 @@ M.setup_vim = function()
   -- Clipboard (schedule to avoid startup delay)
   vim.schedule(function()
     if vim.env.SSH_TTY then
-      -- TODO: This doesn't work becuase MacOS <16 UNCONDITIONALLY
-      -- POPS A DIALOG BOX ON EVERY PASTE WITH NO WAY TO DISABLE IT
-      -- -- In SSH, force osc52
-      -- vim.g.clipboard = 'osc52'
+      -- In SSH, force osc52
+      vim.g.clipboard = 'osc52'
     else
       -- Otherwise, let vim autodetect (xclip, pbcopy, etc)
     end
