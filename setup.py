@@ -362,13 +362,13 @@ def zen(d: Path, v: str):
 
 @pkg()
 def dwm(d: Path, v: str):
-    sh(f'rm {ROOT}/vendor/dwm/config.h')
-    sh(f'make && PREFIX= DESTDIR={d} make install', cwd=ROOT/'vendor/dwm')
+    extract(f'https://github.com/sln-jack/dwm/archive/refs/heads/master.tar.gz', WORK)
+    sh(f'rm -f {WORK}/dwm-master/config.h && make -j$(nproc) && DESTDIR={d} make install', cwd=WORK/'dwm-master')
 
 @pkg()
 def dmenu(d: Path, v: str):
-    sh(f'rm {ROOT}/vendor/dmenu/config.h')
-    sh(f'make && DESTDIR={d} make install', cwd=ROOT/'vendor/dmenu')
+    extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
+    sh(f'rm -f {WORK}/dmenu-master/config.h && make -j$(nproc) && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
 
 @pkg(deps={'automake', 'pkgconfig'})
 def libevdev(d: Path, v: str):
