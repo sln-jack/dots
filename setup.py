@@ -68,32 +68,46 @@ def install(exe: Path, d: Path):
     sh(f'mv {exe} {d}/bin/')
 
 def build_autotools(src: Path, prefix: Path, *args):
-    sh(f'./configure --prefix={prefix} {" ".join(args)}', cwd=src)
-    sh(f'make -j && make install', cwd=src)
+    clang = PKGS/'clang/bin/clang'
+    sh(f'./configure --prefix={prefix} CC={clang} CXX={clang}++ {" ".join(args)}', cwd=src)
+    sh(f'make -j$(nproc) && make install', cwd=src)
 
-def build_automake(src: Path, prefix: Path, *args):
+def build_automake(src: Path, prefix: Path, *args, env: str = ''):
     automake = PKGS/'automake'
-    sh(f'PATH="${automake}/bin:$PATH" autoreconf --install')
+    sh(f'{env} PATH="{automake}/bin:$PATH" autoreconf --install', cwd=src)
     build_autotools(src, prefix, *args)
 
-def build_cmake(src: Path, prefix: Path, *args, j: int = None, targets: list[str] = []):
+def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = True, targets: list[str] = [], env: str = ''):
     components = targets
     targets = ' '.join(f'--target {t}' for t in targets)
+    clang = PKGS/'clang/bin/clang'
     cmake = PKGS/'cmake/bin/cmake'
+    compiler = f'-DCMAKE_C_COMPILER={clang} -DCMAKE_CXX_COMPILER={clang}++' if use_clang else ''
     build = WORK/f'{prefix.name}-build'
-    sh(f'{cmake} -S {src} -B {build} -DCMAKE_INSTALL_PREFIX={prefix} -DCMAKE_BUILD_TYPE=Release {" ".join(args)}')
-    sh(f'{cmake} --build {build} {targets} -j{j or ""}')
+    sh(f'{env} {cmake} -S {src} -B {build} {compiler} -DCMAKE_INSTALL_PREFIX={prefix} -DCMAKE_BUILD_TYPE=Release {" ".join(args)}')
+    sh(f'{env} {cmake} --build {build} {targets} -j$(nproc)')
     if len(components) == 0:
         sh(f'{cmake} --install {build}')
     else:
         for c in components:
             sh(f'{cmake} --install {build} --component {c}')
 
+def build_meson(src: Path, prefix: Path, *args, env: str = ''):
+    clang = PKGS/'clang/bin/clang'
+    meson = f'PYTHONPATH="{PKGS}/meson/lib/python3.14/site-packages" {PKGS}/meson/bin/meson'
+    ninja = PKGS/'ninja'
+    sh(f'{env} PATH="{ninja}/bin:$PATH" CC={clang} CXX={clang}++ CC_LD=lld CXX_LD=lld {meson} setup build --prefix={prefix} {" ".join(args)}', cwd=src)
+    sh(f'{meson} compile -C build', cwd=src)
+    sh(f'{meson} install -C build', cwd=src)
+
 def build_cargo(d: Path, v: str, crate: str):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PATH="{rust}/bin:$PATH" cargo'
     sh(f'{cargo} install {crate}@{v} --locked --root {d}')
 
+def build_pip(d: Path, v: str, package: str):
+    pip = PKGS/'python/bin/pip3'
+    sh(f'{pip} install {package}=={v} --prefix={d}')
 
 #------ Toolchains -------------------------------------------------------------------------------------------
 
@@ -101,6 +115,19 @@ def build_cargo(d: Path, v: str, crate: str):
 def m4(d: Path, v: str):
     extract(f'https://ftp.gnu.org/gnu/m4/m4-{v}.tar.xz', WORK)
     build_autotools(WORK/f'm4-{v}', d)
+
+@pkg()
+def pkgconfig(d: Path, v: str):
+    extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'pkg-config-{v}', d)
+
+@pkg()
+def ninja(d: Path, v: str):
+    platform = {
+        'x86_64-unknown-linux-gnu': 'linux'
+    }[triple]
+    extract(f'https://github.com/ninja-build/ninja/releases/download/v{v}/ninja-{platform}.zip', WORK)
+    install(WORK/'ninja', d)
 
 @pkg(deps={'m4'})
 def automake(d: Path, v: str):
@@ -133,19 +160,24 @@ def python(d: Path, v: str):
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
     build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules')
 
-@pkg(deps={'python'})
+@pkg(deps={'python', 'cmake'})
 def clang(d: Path, v: str):
-    extract(f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{v}/llvm-project-{v}.src.tar.xz", WORK)
+    # extract(f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{v}/llvm-project-{v}.src.tar.xz", WORK)
     build_cmake(
         WORK/f'llvm-project-{v}.src/llvm', d,
         '-DLLVM_ENABLE_PROJECTS="lld;clang;clang-tools-extra"',
+        '-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"',
         '-DLLVM_TARGETS_TO_BUILD="X86;AArch64"',
         '-DLLVM_ENABLE_LLD=OFF',
         '-DLLVM_INCLUDE_EXAMPLES=OFF',
         '-DLLVM_INCLUDE_TESTS=OFF',
-        j=32,
-        targets=['lld', 'clang', 'clang-resource-headers', 'clangd'],
+        use_clang=False,
+        targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'clang-resource-headers', 'clangd', 'runtimes'],
     )
+
+@pkg(deps={'python'})
+def meson(d: Path, v: str):
+    build_pip(d, v, 'meson')
 
 @pkg()
 def rust(d: Path, v: str):
@@ -156,10 +188,13 @@ def rust(d: Path, v: str):
     sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
     sh(f'{vars} PATH="{d}/bin:$PATH" rustup component remove rust-docs')
 
-@pkg(deps={'cmake'})
+@pkg(deps={'cmake', 'rust'})
 def fish(d: Path, v: str):
+    rust = PKGS/'rust'
+    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={rust}'
+
     extract(f'https://github.com/fish-shell/fish-shell/releases/download/{v}/fish-{v}.tar.xz', WORK)
-    build_cmake(WORK/f'fish-{v}', d)
+    build_cmake(WORK/f'fish-{v}', d, env=vars)
 
 @pkg(deps={'cmake'})
 def libevent(d: Path, v: str):
@@ -197,6 +232,16 @@ def codex(d: Path, v: str):
     extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-{tag}.tar.gz', WORK)
     install(WORK/f'codex-{tag}', d)
     sh(f'mv {d}/bin/codex-{tag} {d}/bin/codex')
+
+# Get latest version with `curl -LO https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/stable`
+# See https://claude.ai/install.sh 
+@pkg()
+def claude(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
+    dest = d/'bin'
+    sh(f'mkdir -p {dest}')
+    sh(f'curl -Lo {dest}/claude https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{v}/{tag}/claude')
+    sh(f'chmod +x {dest}/claude')
 
 @pkg()
 def lua_ls(d: Path, v: str):
@@ -282,26 +327,290 @@ def termshark(d: Path, v: str):
     install(WORK/f'termshark_{v}_{tag}/termshark', d)
 
 @pkg()
+def libpcap(d: Path, v: str):
+    extract(f'https://www.tcpdump.org/release/libpcap-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libpcap-{v}', d)
+
+@pkg(deps={'libpcap'})
 def tcpreplay(d: Path, v: str):
+    libpcap = PKGS/'libpcap'
     extract(f'https://github.com/appneta/tcpreplay/releases/download/v{v}/tcpreplay-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'tcpreplay-{v}', d)
+    build_autotools(
+        WORK/f'tcpreplay-{v}', d,
+        f'--with-libpcap={libpcap}',
+        f'CFLAGS="-I{libpcap}/include" LDFLAGS="-L{libpcap}/lib"',
+    )
 
 @pkg(deps={'automake'})
 def vde2(d: Path, v: str):
     extract(f'https://github.com/virtualsquare/vde-2/archive/refs/tags/v{v}.tar.gz', WORK)
     build_automake(WORK/f'vde-2-{v}', d)
 
+@pkg(deps={'rust'})
+def alacritty(d: Path, v: str):
+    build_cargo(d, v, 'alacritty')
+
+@pkg(deps={'rust'})
+def neovide(d: Path, v: str):
+    build_cargo(d, v, 'neovide')
+
+@pkg()
+def zen(d: Path, v: str):
+    extract(f'https://github.com/zen-browser/desktop/releases/download/{v}/zen.linux-x86_64.tar.xz', WORK)
+    sh(f'mv {WORK}/zen {d}/')
+    sh(f'mkdir -p {d}/bin && ln -sfr {d}/zen/zen {d}/bin/zen')
+
+@pkg()
+def dwm(d: Path, v: str):
+    sh(f'rm {ROOT}/vendor/dwm/config.h')
+    sh(f'make && PREFIX= DESTDIR={d} make install', cwd=ROOT/'vendor/dwm')
+
+@pkg()
+def dmenu(d: Path, v: str):
+    sh(f'rm {ROOT}/vendor/dmenu/config.h')
+    sh(f'make && DESTDIR={d} make install', cwd=ROOT/'vendor/dmenu')
+
+@pkg(deps={'automake', 'pkgconfig'})
+def libevdev(d: Path, v: str):
+    pkgconfig = PKGS/'pkgconfig'
+    extract(f'https://www.freedesktop.org/software/libevdev/libevdev-{v}.tar.xz', WORK)
+    build_automake(
+        WORK/f'libevdev-{v}', d,
+        '--enable-static', '--disable-shared',
+        env=f'ACLOCAL_PATH="{pkgconfig}/share/aclocal"'
+    )
+
+@pkg(deps={'automake', 'pkgconfig'})
+def libmtdev(d: Path, v: str):
+    extract(f'https://bitmath.se/org/code/mtdev/mtdev-{v}.tar.gz', WORK)
+    build_automake(
+        WORK/f'mtdev-{v}', d,
+        '--enable-static', '--disable-shared'
+    )
+
+@pkg(deps={'meson', 'ninja', 'libevdev', 'libmtdev'})
+def libinput(d: Path, v: str):
+    # WARNING: impure to take host libsystemd
+    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
+    libevdev = PKGS/'libevdev/lib/pkgconfig'
+    libmtdev = PKGS/'libmtdev/lib/pkgconfig'
+    extract(f'https://gitlab.freedesktop.org/libinput/libinput/-/archive/{v}/libinput-{v}.tar.gz', WORK)
+    build_meson(
+        WORK/f'libinput-{v}', d,
+        '-Ddocumentation=false',
+        '-Dtests=false',
+        '-Ddebug-gui=false',
+        '-Dlibwacom=false',
+        env=f'PKG_CONFIG_PATH="{libevdev}:{libmtdev}:{system}"'
+    )
+
+@pkg(deps={'clang'})
+def pugixml(d: Path, v: str):
+    extract(f'https://github.com/zeux/pugixml/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'pugixml-{v}', d,
+        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
+    )
+
+@pkg(deps={'clang'})
+def libseat(d: Path, v: str):
+    # WARNING: impure to take host libsystemd
+    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
+    libinput = PKGS/f'libinput/lib64/pkgconfig'
+
+    extract(f'https://git.sr.ht/~kennylevinsen/seatd/archive/{v}.tar.gz', WORK)
+    build_meson(
+        WORK/f'seatd-{v}', d,
+        '-Dlibseat-seatd=disabled',
+        '-Dserver=disabled',
+        env=f'PKG_CONFIG_PATH="{system}:{libinput}"',
+    )
+
+@pkg(deps={'clang', 'pugixml'})
+def hyprwayland_scanner(d: Path, v: str):
+    pugixml = PKGS/'pugixml'
+    vars = f'PKG_CONFIG_PATH="{pugixml}/lib64/pkgconfig"'
+
+    extract(f'https://github.com/hyprwm/hyprwayland-scanner/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'hyprwayland-scanner-{v}', d,
+        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
+        env=vars)
+
+
+@pkg(deps={'automake'})
+def libffi(d: Path, v: str):
+    extract(f'https://github.com/libffi/libffi/releases/download/v{v}/libffi-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'libffi-{v}', d)
+
+@pkg(deps={'cmake'})
+def libexpat(d: Path, v: str):
+    extract(f'https://github.com/libexpat/libexpat/releases/download/R_{v.replace('.', '_')}/expat-{v}.tar.gz', WORK)
+    build_cmake(WORK/f'expat-{v}', d)
+
+@pkg(deps={'meson', 'libffi', 'libexpat', 'libxml2'})
+def wayland(d: Path, v: str):
+    libffi = PKGS/'libffi/lib/pkgconfig'
+    libexpat = PKGS/'libexpat/lib64/pkgconfig'
+
+    extract(f'https://gitlab.freedesktop.org/wayland/wayland/-/archive/{v}/wayland-{v}.tar.gz', WORK)
+    build_meson(
+        WORK/f'wayland-{v}', d,
+        '-Dscanner=true',
+        '-Dtests=false',
+        '-Ddocumentation=false',
+        '-Ddtd_validation=false',
+        env=f'PKG_CONFIG_PATH="{libffi}:{libexpat}"',
+    )
+
+@pkg(deps={'meson'})
+def wayland_protocols(d: Path, v: str):
+    wayland = PKGS/'wayland/lib64/pkgconfig'
+
+    extract(f'https://gitlab.freedesktop.org/wayland/wayland-protocols/-/archive/{v}/wayland-protocols-{v}.tar.gz', WORK)
+    build_meson(
+        WORK/f'wayland-protocols-{v}', d,
+        '-Dtests=false',
+        env=f'PKG_CONFIG_PATH="{wayland}"',
+    )
+
+@pkg(deps={'clang', 'pixman'})
+def hyprutils(d: Path, v: str):
+    pixman = PKGS/'pixman/lib64/pkgconfig'
+
+    extract(f'https://github.com/hyprwm/hyprutils/archive/refs/tags/v0.10.4.tar.gz', WORK)
+    build_cmake(
+        WORK/f'hyprutils-{v}', d,
+        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
+        env=f'PKG_CONFIG_PATH="{pixman}"',
+    )
+
+@pkg(deps={'meson'})
+def pixman(d: Path, v: str):
+    extract(f'https://cairographics.org/releases/pixman-{v}.tar.gz', WORK)
+    build_meson(WORK/f'pixman-{v}', d)
+
+@pkg(deps={'meson'})
+def libdisplay_info(d: Path, v: str):
+    extract(f'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/{v}/libdisplay-info-{v}.tar.gz', WORK)
+    build_meson(WORK/f'libdisplay-info-{v}', d)
+
+@pkg()
+def hwdata(d: Path, v: str):
+    extract(f'https://github.com/vcrhonek/hwdata/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_autotools(WORK/f'hwdata-{v}', d)
+
+@pkg(deps={'hyprutils'})
+def hyprlang(d: Path, v: str):
+    hyprutils = PKGS/'hyprutils/lib64/pkgconfig'
+
+    extract(f'https://github.com/hyprwm/hyprlang/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'hyprlang-{v}', d,
+        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
+        env=f'PKG_CONFIG_PATH="{hyprutils}"',
+    )
+
+@pkg()
+def libzip(d: Path, v: str):
+    extract(f'https://github.com/nih-at/libzip/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'libzip-{v}', d,
+        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
+    )
+
+@pkg()
+def pcre2(d: Path, v: str):
+    extract(f'https://github.com/PCRE2Project/pcre2/archive/refs/tags/pcre2-{v}.tar.gz', WORK)
+    build_automake(WORK/f'pcre2-pcre2-{v}', d)
+
+@pkg(deps={'pcre2'})
+def glib(d: Path, v: str):
+    src = WORK/f'glib-{v}'
+
+    pcre2 = PKGS/'pcre2/lib/pkgconfig'
+    sh(f'rm -r {src}/subprojects/gvdb')
+    sh(f'git clone https://gitlab.gnome.org/GNOME/gvdb --depth 1 --branch 2b42fc75f09dbe1cd1057580b5782b08f2dcb400 {src}/subprojects/gvdb')
+
+    extract(f'https://gitlab.gnome.org/GNOME/glib/-/archive/{v}/glib-{v}.tar.gz', WORK)
+    build_meson(
+        src, d,
+        '-Dwrap_mode=nodownload',
+        env=f'PKG_CONFIG_PATH="{pcre2}"',
+    )
+
+@pkg(deps={'glib'})
+def cairo(d: Path, v: str):
+    extract(f'https://cairographics.org/releases/cairo-{v}.tar.xz', WORK)
+    build_meson(
+        WORK/f'cairo-{v}', d,
+        '-Dwrap_mode=nodownload',
+    )
+
+@pkg(deps={'hyprlang', 'libzip', 'cairo'})
+def hyprcursor(d: Path, v: str):
+    hyprlang = PKGS/'hyprlang/lib64/pkgconfig'
+    libzip = PKGS/'libzip/lib64/pkgconfig'
+    cairo = PKGS/'cairo/lib64/pkgconfig'
+
+    extract(f'https://github.com/hyprwm/hyprcursor/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'hyprcursor-{v}', d,
+        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
+        env=f'PKG_CONFIG_PATH="{hyprlang}:{libzip}"',
+    )
+
+@pkg(deps={'meson', 'hyprwayland_scanner', 'libinput', 'libseat', 'wayland', 'wayland_protocols', 'hyprutils'})
+def aquamarine(d: Path, v: str):
+    clang = PKGS/'clang/lib/x86_64-unknown-linux-gnu'
+    hyprwayland_scanner = PKGS/'hyprwayland_scanner'
+    libinput = PKGS/'libinput/lib64/pkgconfig'
+    libseat = PKGS/'libseat/lib64/pkgconfig'
+    wayland = PKGS/'wayland/lib64/pkgconfig'
+    wayland_protocols = PKGS/'wayland_protocols/share/pkgconfig'
+    hyprutils = PKGS/'hyprutils/lib64/pkgconfig'
+    pixman = PKGS/'pixman/lib64/pkgconfig'
+    libdisplay_info = PKGS/'libdisplay_info/lib64/pkgconfig'
+    hwdata = PKGS/'hwdata/share/pkgconfig'
+
+    extract(f'https://github.com/hyprwm/aquamarine/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'aquamarine-{v}', d,
+        f'-DCMAKE_PREFIX_PATH={hyprwayland_scanner}',
+        env=f'LD_LIBRARY_PATH="{clang}" PKG_CONFIG_PATH="{libseat}:{libinput}:{wayland}:{wayland_protocols}:{hyprutils}:{pixman}:{libdisplay_info}:{hwdata}"',
+    )
+
+@pkg(deps={'cmake', 'wayland', 'wayland_protocols', 'udis86', 'aquamarine', 'hyprlang', 'hyprcursor'})
+def hyprland(d: Path, v: str):
+    src = WORK/f'Hyprland-{v}'
+
+    wayland = PKGS/'wayland/share/pkgconfig'
+    wayland_protocols = PKGS/'wayland_protocols/share/pkgconfig'
+    aquamarine = PKGS/'aquamarine/lib64/pkgconfig'
+    hyprlang = PKGS/'hyprlang/lib64/pkgconfig'
+
+    # udis86 submodule
+    extract(f'https://github.com/canihavesomecoffee/udis86/archive/master.tar.gz', WORK)
+    sh(f'rm -rf {src}/subprojects/udis86 && mv {WORK}/udis86-master {src}/subprojects/udis86')
+
+    build_cmake(
+        src, d,
+        env=f'PKG_CONFIG_PATH="{wayland}:{wayland_protocols}:{aquamarine}:{hyprlang}"',
+    )
 
 # --- run ----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     print('\nAdding packages: base')
 
     # Toolchains
+    pkgconfig('0.29.2')
+    ninja('1.13.2')
     m4('1.4.20')
     automake('1.18.1')
     python('3.14.0')
     if sys=='linux': clang('21.1.0')
     cmake('3.31.9')
+    meson('1.9.2')
     rust('nightly')
 
     # Libs
@@ -328,13 +637,48 @@ if __name__ == '__main__':
     lua_ls('3.15.0')
     # AI
     codex('0.52.0')
+    claude('2.0.64')
 
     # Networking
+    libpcap('1.10.5')
     libxml2('2.15.1')
-    wireshark('4.6.0')
+    wireshark('4.6.2')
     termshark('2.4.0')
     tcpreplay('4.5.1')
     vde2('2.3.3')
+
+    # Gui
+    alacritty('0.16.1')
+    neovide('0.15.2')
+    zen('1.17.12b')
+
+    # X11 Windowing
+    dwm('6.6')
+    dmenu('5.4')
+
+    # Wayland Windowing
+    # libevdev('1.12.1')
+    # libmtdev('1.1.7')
+    # libinput('1.30.0')
+    # libseat('0.9.1')
+    # libffi('3.5.2')
+    # libexpat('2.7.3')
+    # wayland('1.24.0')
+    # wayland_protocols('1.46')
+    # pixman('0.46.4')
+    # hwdata('0.402')
+    # libdisplay_info('0.3.0')
+    # hyprutils('0.10.4')
+    # pugixml('1.15')
+    # hyprwayland_scanner('0.4.5')
+    # aquamarine('0.10.0')
+    # hyprlang('0.6.7')
+    # libzip('1.11.4')
+    # pcre2('10.47')
+    # glib('2.86.2')
+    # cairo('1.18.4')
+    # hyprcursor('0.1.13')
+    # hyprland('0.52.2')
 
     # Load extensions
     ext = ROOT/'setup.d'
@@ -384,16 +728,16 @@ if __name__ == '__main__':
     conf('fish/config.fish')
     conf('direnv.toml')
     conf('starship.toml')
+    conf('neovide.toml', 'neovide/config.toml')
     if sys == 'darwin':
         conf('fish/conf.d/macos.fish')
         conf('ghostty.conf', 'ghostty/config')
-        conf('neovide.toml', 'neovide/config.toml')
         conf('aerospace.toml', 'aerospace/aerospace.toml')
     sh(f'mkdir -p {PREFIX}/config/codex')
     sh(f'ln -s ~/.config/* {PREFIX}/config/ 2>/dev/null || true')
 
     print('Cleaning up...')
-    sh(f'rm -rf {WORK}/*')
+    # sh(f'rm -rf {WORK}/*')
 
     # conf('keymap.plist', '~/Library/LaunchAgents/keymap.plist')
 
