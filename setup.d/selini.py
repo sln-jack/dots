@@ -4,14 +4,13 @@ def dotnet(d: Path, v: str, extra_vs: list[str] = []):
     for v in [*extra_vs, v]:
         extract(f'https://builds.dotnet.microsoft.com/dotnet/Sdk/{v}/dotnet-sdk-{v}-{tag}.tar.gz', d)
     sh(f'mkdir {d}/bin && ln -sfr {d}/dotnet {d}/bin/')
-    ENV['DOTNET_ROOT'] = d
 
 @pkg(deps={'dotnet'})
 def roslyn_ls(d: Path, v: str):
     sh(f'rm -rf {WORK}/roslyn || true')
     sh(f'git clone https://github.com/dotnet/roslyn {WORK}/roslyn --depth 1 --branch VSCode-CSharp-{v}')
 
-    dotnet = PKGS/'dotnet'/'bin'/'dotnet'
+    dotnet = f'DOTNET_ROOT={PKGS}/dotnet {PKGS}/dotnet/bin/dotnet'
     sh(f'{dotnet} publish -c Release -o {d} -p:UseAppHost=true -p:IncludeSymbols=false -p:DebugType=None -p:EnableWindowsTargeting=false', 
        cwd=WORK/'roslyn/src/LanguageServer/Microsoft.CodeAnalysis.LanguageServer')
 
