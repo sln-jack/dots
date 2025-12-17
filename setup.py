@@ -67,9 +67,11 @@ def install(exe: Path, d: Path):
     sh(f'chmod +x {exe}')
     sh(f'mv {exe} {d}/bin/')
 
-def build_autotools(src: Path, prefix: Path, *args):
+def build_autotools(src: Path, prefix: Path, *args, use_clang: bool = False):
     clang = PKGS/'clang/bin/clang'
-    sh(f'./configure --prefix={prefix} CC={clang} CXX={clang}++ {" ".join(args)}', cwd=src)
+    clang = f'CC={clang} CXX={clang}++' if use_clang else ''
+
+    sh(f'./configure --prefix={prefix} {clang} {" ".join(args)}', cwd=src)
     sh(f'make -j$(nproc) && make install', cwd=src)
 
 def build_automake(src: Path, prefix: Path, *args, env: str = ''):
@@ -77,7 +79,7 @@ def build_automake(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{env} PATH="{automake}/bin:$PATH" autoreconf --install', cwd=src)
     build_autotools(src, prefix, *args)
 
-def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = True, targets: list[str] = [], env: str = ''):
+def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = False, targets: list[str] = [], env: str = ''):
     components = targets
     targets = ' '.join(f'--target {t}' for t in targets)
     clang = PKGS/'clang/bin/clang'
@@ -156,23 +158,31 @@ def cmake(d: Path, v: str):
     sh(f'rm -f {d}/bin/cmake-gui')
 
 @pkg()
+def sqlite(d: Path, v: str):
+    extract(f'https://www.sqlite.org/2025/sqlite-autoconf-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'sqlite-autoconf-{v}', d)
+
+@pkg(deps={'sqlite'})
 def python(d: Path, v: str):
+    sqlite = PKGS/'sqlite/lib/pkgconfig'
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
-    build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules')
+    build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules',
+        f'PKG_CONFIG_PATH="{sqlite}"')
 
 @pkg(deps={'python', 'cmake'})
 def clang(d: Path, v: str):
-    # extract(f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{v}/llvm-project-{v}.src.tar.xz", WORK)
+    extract(f"https://github.com/llvm/llvm-project/releases/download/llvmorg-{v}/llvm-project-{v}.src.tar.xz", WORK)
     build_cmake(
         WORK/f'llvm-project-{v}.src/llvm', d,
         '-DLLVM_ENABLE_PROJECTS="lld;clang;clang-tools-extra"',
-        '-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"',
+        #'-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"',
         '-DLLVM_TARGETS_TO_BUILD="X86;AArch64"',
         '-DLLVM_ENABLE_LLD=OFF',
         '-DLLVM_INCLUDE_EXAMPLES=OFF',
         '-DLLVM_INCLUDE_TESTS=OFF',
         use_clang=False,
-        targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'clang-resource-headers', 'clangd', 'runtimes'],
+        targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'clang-resource-headers', 'clangd'],
+        #targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'clang-resource-headers', 'clangd', 'runtimes'],
     )
 
 @pkg(deps={'python'})
@@ -187,6 +197,12 @@ def rust(d: Path, v: str):
     sh(f'RUSTUP_HOME={d}/rustup CARGO_HOME={d} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
     sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
     sh(f'{vars} PATH="{d}/bin:$PATH" rustup component remove rust-docs')
+
+@pkg()
+def node(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
+    extract(f'https://nodejs.org/dist/v{v}/node-v{v}-{tag}.tar.xz', WORK)
+    sh(f'mv {WORK}/node-v{v}-{tag}/* {d}')
 
 @pkg(deps={'cmake', 'rust'})
 def fish(d: Path, v: str):
@@ -225,6 +241,12 @@ def nvim(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-x86_64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
     extract(f"https://github.com/neovim/neovim/releases/download/v{v}/nvim-{tag}.tar.gz", WORK)
     sh(f'mv {WORK}/nvim-{tag}/* {d}')
+
+@pkg()
+def uv(d: Path, v: str):
+    extract(f'https://github.com/astral-sh/uv/releases/download/{v}/uv-{triple}.tar.gz', WORK)
+    sh(f'mkdir -p {d}/bin')
+    sh(f'mv {WORK}/uv-{triple}/uv {WORK}/uv-{triple}/uvx {d}/bin/')
 
 @pkg()
 def codex(d: Path, v: str):
@@ -370,6 +392,16 @@ def dmenu(d: Path, v: str):
     extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
     sh(f'rm -f {WORK}/dmenu-master/config.h && make -j$(nproc) && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
 
+# TODO this is bad
+@pkg(deps={'rust'})
+def runst(d: Path, v: str):
+    rust = PKGS/'rust'
+    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PKG_CONFIG_PATH=/usr/lib64/pkgconfig'
+    src = Path.home()/'git/runst'
+    sh(f'{vars} cargo build --release', cwd=src)
+    sh(f'mkdir -p {d}/bin')
+    sh(f'cp {src}/target/release/runst {d}/bin/')
+
 @pkg(deps={'automake', 'pkgconfig'})
 def libevdev(d: Path, v: str):
     pkgconfig = PKGS/'pkgconfig'
@@ -443,10 +475,10 @@ def libffi(d: Path, v: str):
     extract(f'https://github.com/libffi/libffi/releases/download/v{v}/libffi-{v}.tar.gz', WORK)
     build_autotools(WORK/f'libffi-{v}', d)
 
-@pkg(deps={'cmake'})
-def libexpat(d: Path, v: str):
-    extract(f'https://github.com/libexpat/libexpat/releases/download/R_{v.replace('.', '_')}/expat-{v}.tar.gz', WORK)
-    build_cmake(WORK/f'expat-{v}', d)
+#@pkg(deps={'cmake'})
+#def libexpat(d: Path, v: str):
+#    extract(f'https://github.com/libexpat/libexpat/releases/download/R_{v.replace('.', '_')}/expat-{v}.tar.gz', WORK)
+#    build_cmake(WORK/f'expat-{v}', d)
 
 @pkg(deps={'meson', 'libffi', 'libexpat', 'libxml2'})
 def wayland(d: Path, v: str):
@@ -607,11 +639,13 @@ if __name__ == '__main__':
     ninja('1.13.2')
     m4('1.4.20')
     automake('1.18.1')
+    sqlite('3510100')
     python('3.14.0')
     if sys=='linux': clang('21.1.0')
     cmake('3.31.9')
     meson('1.9.2')
     rust('nightly')
+    node('24.12.0')
 
     # Libs
     # Tmux
@@ -635,6 +669,8 @@ if __name__ == '__main__':
     nvim('0.11.4')
     # Lua
     lua_ls('3.15.0')
+    # Python
+    uv('0.9.18')
     # AI
     codex('0.52.0')
     claude('2.0.64')
@@ -649,12 +685,13 @@ if __name__ == '__main__':
 
     # Gui
     alacritty('0.16.1')
-    neovide('0.15.2')
+    #neovide('0.15.2')
     zen('1.17.12b')
 
     # X11 Windowing
     dwm('6.6')
     dmenu('5.4')
+    runst('0.2.0')
 
     # Wayland Windowing
     # libevdev('1.12.1')
@@ -729,6 +766,8 @@ if __name__ == '__main__':
     conf('direnv.toml')
     conf('starship.toml')
     conf('neovide.toml', 'neovide/config.toml')
+    conf('runst/runst.toml')
+    conf('podman-storage.conf', 'containers/storage.conf')
     if sys == 'darwin':
         conf('fish/conf.d/macos.fish')
         conf('ghostty.conf', 'ghostty/config')

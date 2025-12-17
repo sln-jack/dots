@@ -1,0 +1,36 @@
+[global]
+    log_verbosity = "info"
+    startup_notification = true
+    geometry = "400x100+7240+40"
+    wrap_content = false
+    font = "Monospace 10"
+    template = """
+    [{{app_name}}] {{summary}}\
+    {% if body %} {{body}}{% endif %} \
+    {% if now(timestamp=true) - timestamp > 60 %} \
+        ({{ (now(timestamp=true) - timestamp) | humantime }} ago)\
+    {% endif %}\
+    {% if unread_count > 1 %} ({{unread_count}}){% endif %}
+    """
+
+[urgency_low]
+    background = "#000000"
+    foreground = "#505050"
+    timeout = 2
+    text = "low"
+    sound = "/home/jack/.jack/files/quake3hit.wav"
+
+[urgency_normal]
+    background = "#bcbcb2"
+    foreground = "#3f3c35"
+    timeout = 10
+    auto_clear = true
+    text = "normal"
+    sound = "/home/jack/.jack/files/quake3hit.wav"
+
+[urgency_critical]
+    background = "#3f3c35"
+    foreground = "#bcbcb2"
+    timeout = 0
+    text = "critical"
+    sound = "/home/jack/.jack/files/quake3hit.wav"
