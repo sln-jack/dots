@@ -67,12 +67,12 @@ def install(exe: Path, d: Path):
     sh(f'chmod +x {exe}')
     sh(f'mv {exe} {d}/bin/')
 
-def build_autotools(src: Path, prefix: Path, *args, use_clang: bool = False):
+def build_autotools(src: Path, prefix: Path, *args, env: str = '', use_clang: bool = False):
     clang = PKGS/'clang/bin/clang'
     clang = f'CC={clang} CXX={clang}++' if use_clang else ''
 
-    sh(f'./configure --prefix={prefix} {clang} {" ".join(args)}', cwd=src)
-    sh(f'make -j$(nproc) && make install', cwd=src)
+    sh(f'{env} ./configure --prefix={prefix} {clang} {" ".join(args)}', cwd=src)
+    sh(f'{env} make -j$(nproc) && {env} make install', cwd=src)
 
 def build_automake(src: Path, prefix: Path, *args, env: str = ''):
     automake = PKGS/'automake'
@@ -164,10 +164,11 @@ def sqlite(d: Path, v: str):
 
 @pkg(deps={'sqlite'})
 def python(d: Path, v: str):
-    sqlite = PKGS/'sqlite/lib/pkgconfig'
+    sqlite = PKGS/'sqlite/lib'
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
     build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules',
-        f'PKG_CONFIG_PATH="{sqlite}"')
+        f'PKG_CONFIG_PATH="{sqlite}/pkgconfig"',
+        env=f'LD_LIBRARY_PATH="{sqlite}"')
 
 @pkg(deps={'python', 'cmake'})
 def clang(d: Path, v: str):
