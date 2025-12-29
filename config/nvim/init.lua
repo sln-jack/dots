@@ -39,8 +39,8 @@ F.setup {
 
       -------- Files -------------------------------------------------------------------------------------------
 
-      [{'Find file (root)', '<main>f'}] = F.pick.file.with({ dir = F.project.root }),
-      [{'Find file (proj)', '<main>F'}] = F.pick.file.with({ dir = F.project.nearest }),
+      [{'Find file',     '<main>f'}] = F.pick.file.with({ dir = F.project.root }),
+      [{'Find file (.)', '<main>F'}] = F.pick.file.with({ dir = F.project.nearest, hidden = true, gitignored = true}),
 
       [{'Prev buffer', '<main><tab>'}] = F.edit.with('#'),
       [{'Pick buffer', '<main>`'}]     = F.pick.buffer,

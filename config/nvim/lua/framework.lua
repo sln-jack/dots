@@ -157,7 +157,7 @@ F.pick = {
 
     tb.find_files({
       prompt_title = string.format('Files (%s) %s', dir, table.concat(args, ' ')),
-      find_command = vim.tbl_extend('force', {'fd', '--type', 'f'}, args),
+      find_command = vim.list_extend({'fd', '--type', 'f'}, args),
       cwd          = vim.fn.expand(dir),
     })
   end),
@@ -186,7 +186,7 @@ F.pick = {
     tb.find_files({
       prompt_title    = string.format('Dirs (%s) %s', dir, table.concat(args, ' ')),
       cwd             = vim.fn.expand(dir),
-      find_command    = vim.tbl_extend('force', {'fd', '--type', 'd'}, args),
+      find_command    = vim.list_extend({'fd', '--type', 'd'}, args),
       attach_mappings = function(_, map)
         -- Bind <enter> to cd and edit the selected dir
         map('i', '<cr>', function(prompt_bufnr)
