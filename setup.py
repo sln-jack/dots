@@ -754,6 +754,15 @@ if __name__ == '__main__':
             src = pkg/dir
             if src.is_dir():
                 sh(f'ln -sfr {src}/* {dst}/')
+
+    # Python site-packages: symlink all package site-packages into prefix/lib/python/site-packages
+    dst = PREFIX/'lib'/'python'/'site-packages'
+    dst.mkdir(parents=True, exist_ok=True)
+    for pydir in sorted(PKGS.glob('*/lib/python*/site-packages')):
+        for item in pydir.iterdir():
+            link = dst/item.name
+            if not link.exists():
+                link.symlink_to(item)
     # Config
     def conf(src: Path, dst: Path = None):
         sh(f'mkdir -p $(dirname {PREFIX}/config/{dst or src})')

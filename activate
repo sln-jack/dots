@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
-DOTS=$(dirname $(readlink -f "$0"))
-PREFIX=$DOTS/prefix
 
-export PATH="$PREFIX/bin:$HOME/.cargo/bin:$PATH"
-export LD_LIBRARY_PATH="$PREFIX/lib:$LD_LIBRARY_PATH"
-export XDG_CONFIG_HOME=$PREFIX/config
-export XDG_DATA_HOME=$PREFIX/share
+# Already activated - just exec fish
+if [ -n "$DOTS" ]; then
+    exec fish
+fi
 
+export DOTS=$(dirname $(readlink -f "$0"))
+
+export PATH_NODOTS=$PATH
+export LD_LIBRARY_PATH_NODOTS=$LD_LIBRARY_PATH
+export PYTHONPATH_NODOTS=$PYTHONPATH
+export XDG_CONFIG_HOME_NODOTS=$XDG_CONFIG_HOME
+export XDG_DATA_HOME_NODOTS=$XDG_DATA_HOME
 export RUSTUP_HOME_NODOTS=$RUSTUP_HOME
 export CARGO_HOME_NODOTS=$CARGO_HOME
 export DOTNET_ROOT_NODOTS=$DOTNET_ROOT
+export STARSHIP_CONFIG_NODOTS=$STARSHIP_CONFIG
+export CODEX_HOME_NODOTS=$CODEX_HOME
 
-export RUSTUP_HOME=$PREFIX/pkgs/rust/rustup
-export CARGO_HOME=$PREFIX/pkgs/rust
-export DOTNET_ROOT=$PREFIX/pkgs/dotnet
-
-export STARSHIP_CONFIG=$PREFIX/config/starship.toml
-export CODEX_HOME=$PREFIX/codex
+export PATH="$DOTS/prefix/bin:$HOME/.cargo/bin:$PATH"
+export LD_LIBRARY_PATH="$DOTS/prefix/lib:$LD_LIBRARY_PATH"
+export PYTHONPATH="$DOTS/prefix/lib/python/site-packages:$PYTHONPATH"
+export XDG_CONFIG_HOME=$DOTS/prefix/config
+export XDG_DATA_HOME=$DOTS/prefix/share
+export RUSTUP_HOME=$DOTS/prefix/pkgs/rust/rustup
+export CARGO_HOME=$DOTS/prefix/pkgs/rust
+export DOTNET_ROOT=$DOTS/prefix/pkgs/dotnet
+export STARSHIP_CONFIG=$DOTS/prefix/config/starship.toml
+export CODEX_HOME=$DOTS/prefix/codex
 
 exec fish
