@@ -31,6 +31,7 @@ abbr -a crrb cargo run -r --bin
 
 abbr -a g git
 abbr -a gs git status
+abbr -a gsu git submodule update --init --force
 abbr -a gc git switch
 abbr -a gcc git switch -c
 abbr -a gcd git branch -D
@@ -46,6 +47,7 @@ abbr -a gff git fetch
 abbr -a gp git push
 abbr -a gl git log
 abbr -a gl1 git log -n1
+abbr -a gl2 git log -n2
 abbr -a gl3 git log -n3
 abbr -a gcm git commit -m
 abbr -a gcf git commit --fixup
