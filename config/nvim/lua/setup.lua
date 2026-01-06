@@ -185,6 +185,19 @@ local plugins = {
       vim.lsp.enable('lua_ls')
 
       -- C#
+      vim.lsp.config('roslyn_ls', {
+        on_init = {
+          function(client)
+            local solution = _G.F.lsp.config.csharp.solution()
+            if solution and vim.fn.filereadable(solution) == 1 then
+              vim.notify('roslyn_ls: loading ' .. solution, vim.log.levels.INFO)
+              client:notify('solution/open', {
+                solution = vim.uri_from_fname(solution),
+              })
+            end
+          end,
+        },
+      })
       vim.lsp.enable('roslyn_ls')
 
       -- LSP attach hooks

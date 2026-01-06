@@ -282,6 +282,13 @@ end)
 -- LSP -----------------------------------------------------------------------------------------------------------
 
 F.lsp = {
+  -- LSP configuration
+  config = {
+    csharp = {
+      solution = function() return nil end,
+    }
+  },
+
   -- Hover (show docs, signature, etc.)
   hover = function()
     vim.lsp.buf.hover()
