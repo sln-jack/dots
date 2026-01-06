@@ -80,11 +80,11 @@ end
 -- PROJECT -------------------------------------------------------------------------------------------------------
 
 F.project = {
-  -- Return all `.nvim` project directories from the top down
+  -- Return all `.jack` project directories from the top down
   all = function(path)
     path = path or vim.fn.expand('%:p:h')
     local dirs, seen = {}, {}
-    for _, marker in ipairs({'.nvim', '.git'}) do
+    for _, marker in ipairs({'.jack', '.git'}) do
       for _, dir in ipairs(vim.fs.find(marker, { path = path, upward = true, type = 'directory' })) do
         local parent = vim.fs.dirname(dir)
         if not seen[parent] then
@@ -108,20 +108,20 @@ F.project = {
     return dirs[#dirs]
   end),
 
-  -- Create .nvim/ marker in current directory
+  -- Create .jack/ marker in current directory
   mark = function()
     return function()
-      vim.fn.mkdir('.nvim', 'p')
-      vim.notify('Created .nvim/ project marker')
+      vim.fn.mkdir('.jack', 'p')
+      vim.notify('Created .jack/ project marker')
     end
   end,
 
-  -- Load project-specific config from .nvim/init.lua
+  -- Load project-specific config from .jack/init.lua
   load = function()
     local dir = F.project.dir()
     if not dir then return end
 
-    local init_file = dir .. '/.nvim/init.lua'
+    local init_file = dir .. '/.jack/init.lua'
     if vim.fn.filereadable(init_file) == 1 then
       local chunk = loadfile(init_file)
       if chunk then
@@ -630,7 +630,7 @@ local function setup_global()
     vim.api.nvim_create_autocmd('BufWritePost', {
       pattern = {
         '*/.config/nvim/init.lua',
-        '*/.nvim/init.lua',
+        '*/.jack/init.lua',
       },
       callback = function(args)
         local init = args.file
@@ -638,7 +638,7 @@ local function setup_global()
 
         local dirs = F.project.all(init)
         for _, dir in ipairs(dirs) do
-          local project_init = dir .. '/.nvim/init.lua'
+          local project_init = dir .. '/.jack/init.lua'
           if vim.fn.filereadable(project_init) == 1 then
             vim.cmd('source ' .. project_init)
             vim.notify('Loaded ' .. project_init)
@@ -665,7 +665,7 @@ local function setup_global()
         if #projects == 0 then return end
 
         for _, dir in ipairs(projects) do
-          local init = dir .. '/.nvim/init.lua'
+          local init = dir .. '/.jack/init.lua'
           if not state.projects[init] and vim.fn.filereadable(init) == 1 then
             vim.cmd('source ' .. init)
             vim.notify('Loaded ' .. init)
