@@ -44,7 +44,7 @@
 
 [core]
     # Global personal gitignore
-    excludesfile = ~/.git/ignore
+    excludesfile = ~/.jack/prefix/config/git/ignore
 
 [rebase]
     # Automatically handle --fixup commits in `git rebase -i`
