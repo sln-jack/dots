@@ -21,8 +21,12 @@ triple = {
     ('arm64','darwin'): 'aarch64-apple-darwin',
 }[(arch, sys)]
 
+if hosts('dsk-*'):  kind = 'desktop'
+else:               kind = 'server'
+
 print('Probing environment...')
 print(f'  Host: {host}')
+print(f'  Kind: {kind}')
 print(f'  System: {sys}-{arch}')
 
 #------ Primitives -------------------------------------------------------------------------------------------
@@ -750,14 +754,15 @@ if __name__ == '__main__':
     oha('1.12.1')
 
     # Gui
-    alacritty('0.16.1')
-    neovide('0.15.2')
-    zen('1.17.12b')
+    if kind == 'desktop':
+        alacritty('0.16.1')
+        neovide('0.15.2')
+        zen('1.17.12b')
 
-    # X11 Windowing
-    dwm('6.6')
-    dmenu('5.4')
-    runst('0.2.0')
+        # X11 Windowing
+        dwm('6.6')
+        dmenu('5.4')
+        runst('0.2.0')
 
     # Wayland Windowing
     # libevdev('1.12.1')
