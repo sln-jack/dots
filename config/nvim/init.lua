@@ -158,6 +158,7 @@ F.setup {
       [{ 'Line start', { 'i' }, '<C-a>' }] = '<C-o>0',
       [{ 'Line end', { 'i' }, '<C-e>' }] = '<C-o>$',
       [{ 'Delete to EOL', { 'i' }, '<C-k>' }] = '<C-o>D',
+      [{ 'Paste clipboard', { 'c' }, '<C-S-v>' }] = '<C-r>+',
 
       -- Neovide zoom
       [{ 'Zoom in', { 'n','i' }, '<D-=>'}] = function()
