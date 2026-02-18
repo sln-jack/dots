@@ -334,6 +334,10 @@ def sd(d: Path, v: str):
     extract(f'https://github.com/chmln/sd/releases/download/v{v}/sd-v{v}-{triple}.tar.gz', WORK)
     install(WORK/f'sd-v{v}-{triple}/sd', d)
 
+@pkg(deps={'rust'})
+def dust(d: Path, v: str):
+    build_cargo(d, v, 'du-dust')
+
 @pkg()
 def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
@@ -717,6 +721,7 @@ if __name__ == '__main__':
     eza('0.23.4')
     fd('10.3.0')
     sd('1.0.0')
+    dust('1.2.4')
     dua('2.32.2')
 
     # Coding
