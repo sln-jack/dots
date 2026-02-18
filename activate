@@ -27,6 +27,6 @@ export RUSTUP_HOME=$DOTS/prefix/pkgs/rust/rustup
 export CARGO_HOME=$DOTS/prefix/pkgs/rust
 export DOTNET_ROOT=$DOTS/prefix/pkgs/dotnet
 export STARSHIP_CONFIG=$DOTS/prefix/config/starship.toml
-export CODEX_HOME=$DOTS/prefix/codex
+export CODEX_HOME=$DOTS/prefix/config/codex
 
 exec fish
