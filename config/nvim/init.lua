@@ -128,10 +128,10 @@ F.setup {
       [{'Split horiz',  '<M-->'}] = F.cmd.with(':split'),
       [{'Split vert',   '<M-=>'}] = F.cmd.with(':vsplit'),
 
-      [{'Focus left',  '<M-h>'}] = F.cmd.with(':TmuxNavigateLeft'),
-      [{'Focus down',  '<M-j>'}] = F.cmd.with(':TmuxNavigateDown'),
-      [{'Focus up',    '<M-k>'}] = F.cmd.with(':TmuxNavigateUp'),
-      [{'Focus right', '<M-l>'}] = F.cmd.with(':TmuxNavigateRight'),
+      [{'Focus left',  {'n','v'}, '<M-h>'}] = F.cmd.with(':TmuxNavigateLeft'),
+      [{'Focus down',  {'n','v'}, '<M-j>'}] = F.cmd.with(':TmuxNavigateDown'),
+      [{'Focus up',    {'n','v'}, '<M-k>'}] = F.cmd.with(':TmuxNavigateUp'),
+      [{'Focus right', {'n','v'}, '<M-l>'}] = F.cmd.with(':TmuxNavigateRight'),
 
       [{'Move left',  '<M-S-h>'}] = F.cmd.with(':wincmd H'),
       [{'Move down',  '<M-S-j>'}] = F.cmd.with(':wincmd J'),
