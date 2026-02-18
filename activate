@@ -17,6 +17,7 @@ export CARGO_HOME_NODOTS=$CARGO_HOME
 export DOTNET_ROOT_NODOTS=$DOTNET_ROOT
 export STARSHIP_CONFIG_NODOTS=$STARSHIP_CONFIG
 export CODEX_HOME_NODOTS=$CODEX_HOME
+export BROWSER_NODOTS=$BROWSER
 
 export PATH="$DOTS/prefix/bin:$HOME/.cargo/bin:$PATH"
 export LD_LIBRARY_PATH="$DOTS/prefix/lib:$LD_LIBRARY_PATH"
@@ -29,5 +30,6 @@ mkdir -p $CARGO_HOME
 export DOTNET_ROOT=$DOTS/prefix/pkgs/dotnet
 export STARSHIP_CONFIG=$DOTS/prefix/config/starship.toml
 export CODEX_HOME=$DOTS/prefix/config/codex
+export BROWSER=zen
 
 exec fish
