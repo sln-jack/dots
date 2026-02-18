@@ -5,6 +5,7 @@ DOTS=$(dirname $(readlink -f "$0"))
 HOST=$1
 rsync -Pavr \
     --exclude prefix/bin \
+    --exclude prefix/share \
     --exclude prefix/lib \
     --exclude prefix/config \
     --exclude prefix/work \
