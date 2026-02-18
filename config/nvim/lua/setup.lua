@@ -283,6 +283,7 @@ local plugins = {
     opts = {
       signature = { enabled = true },
       fuzzy = { implementation = 'prefer_rust_with_warning' },
+      cmdline = { enabled = false },
       sources = { default = { 'lsp', 'path' } },
       keymap = {
         preset = 'none',
@@ -403,6 +404,8 @@ M.setup_vim = function()
   vim.o.confirm = true                 -- Ask to save instead of failing on :q
   vim.o.updatetime = 250               -- Faster LSP diagnostics
   vim.o.timeoutlen = 300               -- Decrease mapped sequence wait time
+  vim.o.wildmenu = true                -- Enhanced command-line completion
+  vim.o.wildmode = 'longest:list,full' -- Complete longest match, list all, then cycle
 
   -- Display
   vim.o.number = true                  -- Show line numbers
