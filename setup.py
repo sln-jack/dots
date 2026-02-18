@@ -428,6 +428,12 @@ def gping(d: Path, v: str):
 def oha(d: Path, v: str):
     build_cargo(d, v, 'oha')
 
+@pkg()
+def snitch(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'darwin_arm64'}[(sys, arch)]
+    extract(f'https://github.com/karol-broda/snitch/releases/download/v{v}/snitch_{v}_{tag}.tar.gz', WORK)
+    install(WORK/'snitch', d)
+
 @pkg(deps={'rust'})
 def alacritty(d: Path, v: str):
     build_cargo(d, v, 'alacritty')
@@ -750,6 +756,7 @@ if __name__ == '__main__':
     vde2('2.3.3')
     gping('1.20.1')
     oha('1.12.1')
+    snitch('0.2.2')
 
     # Gui
     if kind == 'desktop':
