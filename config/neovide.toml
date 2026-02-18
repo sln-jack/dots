@@ -1,6 +1,6 @@
 [font]
 normal = "Iosevka NFM"
-size = 14
+size = 9
 
 # Disable ligatures == != etc
 [font.features]
