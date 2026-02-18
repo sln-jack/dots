@@ -775,6 +775,7 @@ if __name__ == '__main__':
     conf('fish/config.fish')
     conf('direnv.toml')
     conf('starship.toml')
+    conf('alacritty.toml')
     conf('neovide.toml', 'neovide/config.toml')
     conf('runst/runst.toml')
     conf('podman-storage.conf', 'containers/storage.conf')
