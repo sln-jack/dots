@@ -196,7 +196,7 @@ def rust(d: Path, v: str):
     vars = f'RUSTUP_HOME={d}/rustup CARGO_HOME={d}'
     sh(f'curl -L https://static.rust-lang.org/rustup/dist/{triple}/rustup-init -o {WORK}/rustup-init')
     sh(f'chmod +x {WORK}/rustup-init')
-    sh(f'RUSTUP_HOME={d}/rustup CARGO_HOME={d} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
+    sh(f'RUSTUP_HOME={d}/rustup CARGO_HOME={d} {WORK}/rustup-init --default-toolchain {v} --component rust-analyzer --no-modify-path -y')
     sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
     sh(f'{vars} PATH="{d}/bin:$PATH" rustup component remove rust-docs')
 
@@ -268,6 +268,19 @@ def claude(d: Path, v: str):
     sh(f'chmod +x {dest}/claude')
 
 @pkg()
+def sqlcmd(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
+    sh(f'mkdir -p {d}/bin')
+    extract(f'https://github.com/microsoft/go-sqlcmd/releases/download/v{v}/sqlcmd-{tag}.tar.bz2', d/'bin')
+    sh(f'rm {d}/bin/sqlcmd_debug {d}/bin/NOTICE.md')
+
+@pkg()
+def duckdb(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-amd64'}[(sys, arch)]
+    sh(f'mkdir {d}/bin')
+    extract(f'https://install.duckdb.org/v{v}/duckdb_cli-{tag}.zip', d/'bin')
+
+@pkg()
 def lua_ls(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
     extract(f'https://github.com/LuaLS/lua-language-server/releases/download/{v}/lua-language-server-{v}-{tag}.tar.gz', d/'lua_ls')
@@ -325,23 +338,42 @@ def libxml2(d: Path, v: str):
         '--disable-shared --enable-static',
     )
 
-@pkg(deps={'libxml2'})
+@pkg(deps={'libxml2', 'libpcap'})
 def wireshark(d: Path, v: str):
     extract(f'https://2.na.dl.wireshark.org/src/wireshark-{v}.tar.xz', WORK)
+    #extract(f'https://github.com/Selini-3rdparty/wireshark/archive/refs/heads/wireshark-{v}.zip', WORK)
+    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
+    libpcap = PKGS/'libpcap'
     disable = [f'-DBUILD_{tool}=OFF' for tool in [
-        'wireshark','rawshark','sharkd','tfshark','capinfos','editcap',
-        'mergecap','reordercap','text2pcap','randpkt','randpktdump',
+        'rawshark','sharkd','tfshark','capinfos','editcap',
+        'mergecap','reordercap','text2pcap','randpkt', 'radiotap', 'randpktdump',
         'mmdbresolve','ciscodump','sshdump','wifidump','udpdump',
         'androiddump','dpauxmon','sdjournal','captype'
     ]]
     build_cmake(
         WORK/f'wireshark-{v}', d,
         f'-DLIBXML2_INCLUDE_DIR={PKGS}/libxml2/include/libxml2 -DLIBXML2_LIBRARY={PKGS}/libxml2/lib/libxml2.a',
+        f'-DPCAP_INCLUDE_DIR={libpcap}/include -DPCAP_LIBRARY={libpcap}/lib/libpcap.a',
+        '-DCMAKE_PREFIX_PATH=/usr/lib64/cmake',
         '-DENABLE_EXTCAP=OFF',
-        '-DENABLE_PLUGINS=OFF'
+        '-DENABLE_PLUGINS=OFF',
+        '-DENABLE_SpeexDSP=OFF',
+        '-DENABLE_LUA=OFF',
+        '-DENABLE_NETLINK=OFF',
+        '-DENABLE_KERBEROS=OFF',
+        '-DENABLE_SBC=OFF',
+        '-DENABLE_SPANDSP=OFF',
+        '-DENABLE_BCG729=OFF',
+        '-DENABLE_AMRNB=OFF',
+        '-DENABLE_ILBC=OFF',
+        '-DENABLE_LIBXML2=OFF',
+        '-DENABLE_NGHTTP2=OFF',
+        '-DENABLE_NGHTTP3=OFF',
+        '-DBUILD_wireshark=ON',
         '-DBUILD_tshark=ON',
         '-DBUILD_dumpcap=ON',
         *disable,
+        env=f'PKG_CONFIG_PATH="{system}"',
     )
 
 @pkg(deps={'wireshark'})
@@ -353,7 +385,7 @@ def termshark(d: Path, v: str):
 @pkg()
 def libpcap(d: Path, v: str):
     extract(f'https://www.tcpdump.org/release/libpcap-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libpcap-{v}', d)
+    build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus')
 
 @pkg(deps={'libpcap'})
 def tcpreplay(d: Path, v: str):
@@ -369,6 +401,14 @@ def tcpreplay(d: Path, v: str):
 def vde2(d: Path, v: str):
     extract(f'https://github.com/virtualsquare/vde-2/archive/refs/tags/v{v}.tar.gz', WORK)
     build_automake(WORK/f'vde-2-{v}', d)
+
+@pkg(deps={'rust'})
+def gping(d: Path, v: str):
+    build_cargo(d, v, 'gping')
+
+@pkg(deps={'rust'})
+def oha(d: Path, v: str):
+    build_cargo(d, v, 'oha')
 
 @pkg(deps={'rust'})
 def alacritty(d: Path, v: str):
@@ -674,20 +714,26 @@ if __name__ == '__main__':
     # Python
     uv('0.9.18')
     # AI
-    codex('0.52.0')
-    claude('2.0.64')
+    codex('0.98.0')
+    claude('2.1.32')
+    # DB
+    sqlcmd('1.9.0')
+    duckdb('1.4.4')
 
     # Networking
     libpcap('1.10.5')
     libxml2('2.15.1')
-    wireshark('4.6.2')
+    #wireshark('4.6.2')
+    wireshark('4.6.2-sln')
     termshark('2.4.0')
     tcpreplay('4.5.1')
     vde2('2.3.3')
+    gping('1.20.1')
+    oha('1.12.1')
 
     # Gui
     alacritty('0.16.1')
-    #neovide('0.15.2')
+    neovide('0.15.2')
     zen('1.17.12b')
 
     # X11 Windowing
