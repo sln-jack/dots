@@ -225,16 +225,27 @@ def libutf8proc(d: Path, v: str):
     extract(f'https://github.com/JuliaStrings/utf8proc/archive/refs/tags/v{v}.tar.gz', WORK)
     build_cmake(WORK/f'utf8proc-{v}', d)
 
-@pkg(deps={'cmake', 'libevent', 'libutf8proc'})
+@pkg()
+def ncurses(d: Path, v: str):
+    extract(f'https://invisible-island.net/archives/ncurses/ncurses-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
+        f'--with-pkg-config-libdir={d}/lib/pkgconfig')
+
+@pkg(deps={'cmake', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
+    ncurses = PKGS/'ncurses/lib/pkgconfig'
+    libevent = PKGS/'libevent/lib/pkgconfig'
+    pkg_config_path = f'{ncurses}:{libevent}'
+
     flags = ''
     if sys == 'darwin':
-        flags = f'PKG_CONFIG_PATH={PKGS}/libutf8proc/lib/pkgconfig --enable-utf8proc' if sys == 'darwin' else ''
+        flags = f'--enable-utf8proc'
+        pkg_config_path += f':{PKGS}/libutf8proc/lib/pkgconfig'
 
     extract(f'https://github.com/tmux/tmux/releases/download/{v}/tmux-{v}.tar.gz', WORK)
     build_autotools(
         WORK/f'tmux-{v}', d,
-        f'CFLAGS="-I{PKGS}/libevent/include" LDFLAGS="-L{PKGS}/libevent/lib"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"',
         flags,
     )
 
@@ -691,6 +702,7 @@ if __name__ == '__main__':
 
     # Libs
     # Tmux
+    ncurses('6.6')
     libevent('2.1.12-stable')
     if sys == 'darwin': libutf8proc('2.11.0')
 
