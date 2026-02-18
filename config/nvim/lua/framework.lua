@@ -443,12 +443,15 @@ F.git = {
   permalink = lazy(function(opts)
     opts = opts or {}
 
-    local file = vim.fn.expand('%')
-    local root = vim.fn.systemlist('git rev-parse --show-toplevel')[1]
+    local file = vim.fn.expand('%:p')
+    local dir = vim.fn.fnamemodify(file, ':h')
+    local git = 'git -C ' .. vim.fn.shellescape(dir)
+
+    local root = vim.fn.systemlist(git .. ' rev-parse --show-toplevel')[1]
     local relpath = file:gsub('^' .. vim.pesc(root .. '/'), '')
 
-    local branch = opts.branch or vim.fn.systemlist('git rev-parse --abbrev-ref HEAD')[1] or 'main'
-    local remote = vim.fn.systemlist('git config --get remote.origin.url')[1]
+    local branch = opts.branch or vim.fn.systemlist(git .. ' rev-parse --abbrev-ref HEAD')[1] or 'main'
+    local remote = vim.fn.systemlist(git .. ' config --get remote.origin.url')[1]
 
     local line0, line1
     local mode = vim.fn.mode()
@@ -465,6 +468,7 @@ F.git = {
 
     if remote:match('github.com') then
       local baseurl = remote
+        :gsub('^ssh://git@github%.com/', 'https://github.com/')
         :gsub('^git@github%.com:', 'https://github.com/')
         :gsub('%.git$', '')
         :gsub('^https://github%.com/', 'https://github.com/')
