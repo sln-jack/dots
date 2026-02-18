@@ -351,8 +351,9 @@ def libxml2(d: Path, v: str):
 
 @pkg(deps={'libxml2', 'libpcap'})
 def wireshark(d: Path, v: str):
-    extract(f'https://2.na.dl.wireshark.org/src/wireshark-{v}.tar.xz', WORK)
-    #extract(f'https://github.com/Selini-3rdparty/wireshark/archive/refs/heads/wireshark-{v}.zip', WORK)
+    src = WORK/f'wireshark-{v}'
+    if not src.exists():
+        sh(f'git clone --branch wireshark-{v} --depth 1 git@github.com:Selini-3rdparty/wireshark.git {src}')
     system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
     libpcap = PKGS/'libpcap'
     disable = [f'-DBUILD_{tool}=OFF' for tool in [
@@ -364,7 +365,6 @@ def wireshark(d: Path, v: str):
     build_cmake(
         WORK/f'wireshark-{v}', d,
         f'-DLIBXML2_INCLUDE_DIR={PKGS}/libxml2/include/libxml2 -DLIBXML2_LIBRARY={PKGS}/libxml2/lib/libxml2.a',
-        f'-DPCAP_INCLUDE_DIR={libpcap}/include -DPCAP_LIBRARY={libpcap}/lib/libpcap.a',
         '-DCMAKE_PREFIX_PATH=/usr/lib64/cmake',
         '-DENABLE_EXTCAP=OFF',
         '-DENABLE_PLUGINS=OFF',
@@ -380,11 +380,11 @@ def wireshark(d: Path, v: str):
         '-DENABLE_LIBXML2=OFF',
         '-DENABLE_NGHTTP2=OFF',
         '-DENABLE_NGHTTP3=OFF',
-        '-DBUILD_wireshark=ON',
+        '-DBUILD_wireshark=OFF',
         '-DBUILD_tshark=ON',
         '-DBUILD_dumpcap=ON',
         *disable,
-        env=f'PKG_CONFIG_PATH="{system}"',
+        env=f'PKG_CONFIG_PATH="{libpcap}/lib/pkgconfig:{system}"',
     )
 
 @pkg(deps={'wireshark'})
@@ -396,7 +396,7 @@ def termshark(d: Path, v: str):
 @pkg()
 def libpcap(d: Path, v: str):
     extract(f'https://www.tcpdump.org/release/libpcap-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus')
+    build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus', '--enable-shared', '--enable-static')
 
 @pkg(deps={'libpcap'})
 def tcpreplay(d: Path, v: str):
@@ -736,7 +736,7 @@ if __name__ == '__main__':
     libpcap('1.10.5')
     libxml2('2.15.1')
     #wireshark('4.6.2')
-    wireshark('4.6.2-sln')
+    wireshark('4.2.0-sln')
     termshark('2.4.0')
     tcpreplay('4.5.1')
     vde2('2.3.3')
