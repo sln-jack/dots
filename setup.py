@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, platform, subprocess, shutil, stat
+import os, platform, subprocess, shutil, stat, fnmatch
 from pathlib import Path
 
 #------ Environment ------------------------------------------------------------------------------------------
@@ -15,6 +15,7 @@ PREFIX.mkdir(parents=True, exist_ok=True)
 sys  = platform.system().lower()  # linux  | darwin
 arch = platform.machine().lower() # x86_64 | arm64
 host = os.uname().nodename        # navi
+def hosts(*patterns): return any(fnmatch.fnmatch(host, p) for p in patterns)
 triple = {
     ('x86_64','linux'): 'x86_64-unknown-linux-gnu',
     ('arm64','darwin'): 'aarch64-apple-darwin',
