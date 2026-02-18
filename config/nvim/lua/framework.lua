@@ -361,7 +361,7 @@ F.lsp = {
       local ds = diagnostics(buf, sev)
       if line ~= nil then
         for _, d in ipairs(ds) do
-          if d.lnum + 1 > line or d.col > col then return d end
+          if d.lnum + 1 > line or (d.lnum + 1 == line and d.col > col) then return d end
         end
       end
       return ds[1]
@@ -395,12 +395,12 @@ F.lsp = {
     for _, sev in ipairs(sev_list) do
       local d = next_in_buffer(sev, cur_buf, pos[1], pos[2])
       if d then return jump_to(d) end
-      for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.api.nvim_buf_is_loaded(b) and b ~= cur_buf then
-          local d2 = next_in_buffer(sev, b, nil, nil)
-          if d2 then return jump_to(d2) end
-        end
-      end
+      -- for _, b in ipairs(vim.api.nvim_list_bufs()) do
+      --   if vim.api.nvim_buf_is_loaded(b) and b ~= cur_buf then
+      --     local d2 = next_in_buffer(sev, b, nil, nil)
+      --     if d2 then return jump_to(d2) end
+      --   end
+      -- end
     end
   end),
 }

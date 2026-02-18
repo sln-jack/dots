@@ -166,6 +166,7 @@ local plugins = {
         capabilities = require('blink.cmp').get_lsp_capabilities(),
       })
 
+      vim.lsp.enable('rust_analyzer')
       vim.lsp.enable('clangd')
 
       vim.lsp.config('lua_ls', {
@@ -297,27 +298,6 @@ local plugins = {
     },
   },
 
-  -- Formatting
-  {
-    'stevearc/conform.nvim',
-    event = { 'BufWritePre' },
-    cmd = { 'ConformInfo' },
-    opts = {
-      notify_on_error = false,
-      format_on_save = function(bufnr)
-        local ty = vim.bo[bufnr].filetype
-        if ty == 'rust' then
-          return { timeout_ms = 500, lsp_format = 'fallback' }
-        end
-        return nil
-      end,
-      formatters_by_ft = {
-        lua = { 'stylua' },
-        rust = { 'rustfmt' },
-      },
-    },
-  },
-
   -- Mini modules
   {
     'echasnovski/mini.nvim',
@@ -374,17 +354,6 @@ local plugins = {
     filters = { dotfiles = true },
   } },
   { 'mikavilpas/yazi.nvim', event = 'VeryLazy', dependencies = { 'nvim-lua/plenary.nvim' }, opts = {} },
-  {
-    'lewis6991/satellite.nvim',
-    opts = {
-      handlers = {
-        -- It lags with too much stuff so we trim it down
-        diagnostic = { min_severity = vim.diagnostic.severity.ERROR },
-        gitsigns = { enable = false },
-        quickfix = { enable = false },
-      }
-    }
-  },
   {
     'rcarriga/nvim-notify',
     event = 'VeryLazy',
@@ -529,6 +498,26 @@ M.setup_vim = function()
     vim.api.nvim_put({ divider }, 'l', true, true)
   end, { nargs = 1 })
 
+  -- Full OLED black bg everywhere
+  vim.api.nvim_create_autocmd('ColorScheme', {
+    callback = function()
+      local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+      local fg = normal.fg
+      local function paint_it_black(group)
+        vim.api.nvim_set_hl(0, group, { fg = fg, bg = "black" })
+      end
+      paint_it_black("Normal")
+      paint_it_black("NormalNC")
+      paint_it_black("NormalFloat")
+      paint_it_black("FloatBorder")
+      paint_it_black("SignColumn")
+      paint_it_black("EndOfBuffer")
+      paint_it_black("StatusLine")
+      paint_it_black("StatusLineNC")
+      paint_it_black("WinSeparator")
+    end,
+  })
+
   -- Neovide tweaks
   if vim.g.neovide then
     vim.g.neovide_opacity = 0.80
@@ -539,7 +528,7 @@ M.setup_vim = function()
     vim.g.neovide_cursor_smooth_blink = true
     vim.g.neovide_cursor_trail_size = 0.35
     vim.g.neovide_input_macos_option_key_is_meta = 'only_left'
-    vim.g.neovide_refresh_rate = 144
+    vim.g.neovide_refresh_rate = 240
     vim.g.neovide_refresh_rate_idle = 10
   end
 end

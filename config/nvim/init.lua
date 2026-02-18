@@ -29,7 +29,7 @@ F.setup {
       ['<main>'] = '<space>',
       ['<lang>'] = '\\',
       ['<proj>']  = '<f6>',
-      ['<ctx>'] = '<f7>',
+      ['<ctx>'] = '|',
       ['<misc>'] = '<f8>',
     },
     binds = {
@@ -70,9 +70,11 @@ F.setup {
       [{'Find refs',    '<lang>r'}] = F.lsp.references,
       [{'Find symbol',  '<lang>s'}] = F.lsp.symbols,
 
-      [{'Next error', '<lang>e'}] = F.lsp.next_diagnostic.with({'ERROR', 'WARN', 'INFO', 'HINT'}),
-      [{'Next warn',  '<lang>w'}] = F.lsp.next_diagnostic.with({'WARN'}),
-      [{'Format',     '<lang>f'}] = F.lsp.format,
+      [{'Next error',  '<lang>E'}] = F.lsp.next_diagnostic.with({'ERROR', 'WARN', 'INFO', 'HINT'}),
+      [{'Next error',  '<lang>e'}] = F.lsp.next_diagnostic.with({'ERROR'}),
+      [{'Next warn',   '<lang>w'}] = F.lsp.next_diagnostic.with({'WARN'}),
+      [{'Diagnostics', '<lang>q'}] = function() require('telescope.builtin').diagnostics() end,
+      [{'Format',      '<lang>f'}] = F.lsp.format,
 
       [{'Permalink',      {'n','v'}, '<lang>l'}] = F.git.permalink,
       [{'Permalink main', {'n','v'}, '<lang>L'}] = F.git.permalink.with({ branch = 'main' }),
