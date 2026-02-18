@@ -154,6 +154,7 @@ F.setup {
       [{ 'Yazi', '<main>y' }] = F.cmd.with(':Yazi'),
       [{ 'Toggle tree', '<main>t' }] = F.tree.toggle,
       [{ 'Re-yank selection after paste', { 'x' }, 'p' }] = F.cmd.with('normal! pgvy'),
+      [{ 'Yank without moving cursor', { 'x' }, 'y' }] = "m'y`'",
       [{ 'Line start', { 'i' }, '<C-a>' }] = '<C-o>0',
       [{ 'Line end', { 'i' }, '<C-e>' }] = '<C-o>$',
       [{ 'Delete to EOL', { 'i' }, '<C-k>' }] = '<C-o>D',
