@@ -24,7 +24,8 @@ export PYTHONPATH="$DOTS/prefix/lib/python/site-packages:$PYTHONPATH"
 export XDG_CONFIG_HOME=$DOTS/prefix/config
 export XDG_DATA_HOME=$DOTS/prefix/share
 export RUSTUP_HOME=$DOTS/prefix/pkgs/rust/rustup
-export CARGO_HOME=$DOTS/prefix/pkgs/rust
+export CARGO_HOME=$DOTS/prefix/cache/cargo
+mkdir -p $CARGO_HOME
 export DOTNET_ROOT=$DOTS/prefix/pkgs/dotnet
 export STARSHIP_CONFIG=$DOTS/prefix/config/starship.toml
 export CODEX_HOME=$DOTS/prefix/config/codex

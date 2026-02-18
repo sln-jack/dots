@@ -9,6 +9,7 @@ rsync -Pavr \
     --exclude prefix/lib \
     --exclude prefix/config \
     --exclude prefix/work \
+    --exclude prefix/cache \
     --exclude prefix/codex/log \
     --exclude prefix/codex/sessions \
     --exclude prefix/codex/history.jsonl \

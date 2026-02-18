@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parent
 PREFIX = ROOT/'prefix'
 PKGS = PREFIX/'pkgs'
 WORK = PREFIX/'work'
+CACHE = PREFIX/'cache'
 
 PREFIX.mkdir(parents=True, exist_ok=True)
 
@@ -110,7 +111,7 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
 
 def build_cargo(d: Path, v: str, crate: str):
     rust = PKGS/'rust'
-    cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PATH="{rust}/bin:$PATH" cargo'
+    cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
     sh(f'{cargo} install {crate}@{v} --locked --root {d}')
 
 def build_pip(d: Path, v: str, package: str):
@@ -358,7 +359,7 @@ def libxml2(d: Path, v: str):
         '--disable-shared --enable-static',
     )
 
-@pkg(deps={'libxml2', 'libpcap'})
+@pkg(deps={'libpcap'})
 def wireshark(d: Path, v: str):
     src = WORK/f'wireshark-{v}'
     if not src.exists():
@@ -367,17 +368,14 @@ def wireshark(d: Path, v: str):
     libpcap = PKGS/'libpcap'
     disable = [f'-DBUILD_{tool}=OFF' for tool in [
         'rawshark','sharkd','tfshark','capinfos','editcap',
-        'mergecap','reordercap','text2pcap','randpkt', 'radiotap', 'randpktdump',
+        'mergecap','reordercap','text2pcap','randpkt','randpktdump',
         'mmdbresolve','ciscodump','sshdump','wifidump','udpdump',
         'androiddump','dpauxmon','sdjournal','captype'
     ]]
     build_cmake(
         WORK/f'wireshark-{v}', d,
-        f'-DLIBXML2_INCLUDE_DIR={PKGS}/libxml2/include/libxml2 -DLIBXML2_LIBRARY={PKGS}/libxml2/lib/libxml2.a',
-        '-DCMAKE_PREFIX_PATH=/usr/lib64/cmake',
-        '-DENABLE_EXTCAP=OFF',
+        f'-DCMAKE_C_FLAGS="-I{libpcap}/include" -DCMAKE_EXE_LINKER_FLAGS="-L{libpcap}/lib"',
         '-DENABLE_PLUGINS=OFF',
-        '-DENABLE_SpeexDSP=OFF',
         '-DENABLE_LUA=OFF',
         '-DENABLE_NETLINK=OFF',
         '-DENABLE_KERBEROS=OFF',
@@ -799,6 +797,7 @@ if __name__ == '__main__':
     print(f'\nProcessing {len(PLAN)} pkgs...')
     PKGS.mkdir(exist_ok=True)
     WORK.mkdir(exist_ok=True)
+    CACHE.mkdir(exist_ok=True)
 
     # Topo sort
     seen, ordered = set(), []
