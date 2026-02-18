@@ -57,6 +57,7 @@ def extract(url: str, dest: Path):
     dest.mkdir(parents=True, exist_ok=True)
     if   url.endswith(('.tar.gz','.tgz')): sh(f'curl -L {url} | tar xzf - -C {dest}')
     elif url.endswith('.tar.xz'):          sh(f'curl -L {url} | tar xJf - -C {dest}')
+    elif url.endswith('.bz2'):             sh(f'curl -L {url} | tar xjf - -C {dest}')
     elif url.endswith('.zip'):
         zip = dest/'temp.zip'
         sh(f'curl -L {url} -o {zip} && unzip -q {zip} -d {dest} && rm -f {zip}')
