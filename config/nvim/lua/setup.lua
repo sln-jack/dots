@@ -282,7 +282,7 @@ local plugins = {
     build = 'cargo build --release',
     opts = {
       signature = { enabled = true },
-      fuzzy = { implementation = 'prefer_rust_with_warning' },
+      fuzzy = { implementation = 'prefer_rust_with_warning', sorts = { 'exact', 'score', 'sort_text' } },
       cmdline = { enabled = false },
       sources = { default = { 'lsp', 'path' } },
       keymap = {
