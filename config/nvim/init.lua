@@ -74,7 +74,16 @@ F.setup {
       [{'Next error',  '<lang>e'}] = F.lsp.next_diagnostic.with({'ERROR'}),
       [{'Next warn',   '<lang>w'}] = F.lsp.next_diagnostic.with({'WARN'}),
       [{'Diagnostics', '<lang>q'}] = function() require('telescope.builtin').diagnostics() end,
-      [{'Format',      '<lang>f'}] = F.lsp.format,
+      [{'Copy relpath', '<lang>f'}] = function()
+        local path = vim.fn.fnamemodify(vim.fn.expand('%'), ':.')
+        vim.fn.setreg('+', path)
+        vim.notify(path)
+      end,
+      [{'Copy abspath', '<lang>F'}] = function()
+        local path = vim.fn.expand('%:p')
+        vim.fn.setreg('+', path)
+        vim.notify(path)
+      end,
 
       [{'Permalink',      {'n','v'}, '<lang>l'}] = F.git.permalink,
       [{'Permalink main', {'n','v'}, '<lang>L'}] = F.git.permalink.with({ branch = 'main' }),
