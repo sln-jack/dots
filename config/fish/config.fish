@@ -41,7 +41,7 @@ abbr -a gds git diff --staged
 abbr -a ga git add
 abbr -a gr git reset --hard
 abbr -a gr1 git reset --hard HEAD~1
-abbr -a grs1 git reset --soft HEAD~1
+abbr -a grs git reset --soft HEAD~1
 abbr -a gf git pull
 abbr -a gff git fetch
 abbr -a gp git push
@@ -55,8 +55,13 @@ abbr -a gca git commit --amend --no-edit
 abbr -a gcA git commit --amend
 abbr -a gb git rebase
 abbr -a gbi git rebase -i
+abbr -a gbi2 git rebase -i HEAD^^
+abbr -a gbi3 git rebase -i HEAD^^^
+abbr -a gbi4 git rebase -i HEAD^^^^
+abbr -a gbi5 git rebase -i HEAD^^^^^
 abbr -a gbc git rebase --continue
 abbr -a gu git restore --staged
+abbr -a gU git restore
 abbr -a gy git stash
 abbr -a gyu git stash -u
 abbr -a gyp git stash pop
