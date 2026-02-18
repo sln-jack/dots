@@ -1,5 +1,5 @@
 @pkg()
-def dotnet(d: Path, v: str, extra_vs: list[str] = []):
+def dotnet(d: Path, v: str, extra_vs: list = []):
     tag = {('darwin','arm64'):'osx-arm64', ('linux','x86_64'):'linux-x64'}[(sys, arch)]
     for v in [*extra_vs, v]:
         extract(f'https://builds.dotnet.microsoft.com/dotnet/Sdk/{v}/dotnet-sdk-{v}-{tag}.tar.gz', d)

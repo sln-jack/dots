@@ -79,7 +79,7 @@ def build_automake(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{env} PATH="{automake}/bin:$PATH" autoreconf --install', cwd=src)
     build_autotools(src, prefix, *args)
 
-def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = False, targets: list[str] = [], env: str = ''):
+def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = False, targets: list = [], env: str = ''):
     components = targets
     targets = ' '.join(f'--target {t}' for t in targets)
     clang = PKGS/'clang/bin/clang'
