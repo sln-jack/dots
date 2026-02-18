@@ -518,6 +518,10 @@ M.setup_vim = function()
       paint_it_black("StatusLine")
       paint_it_black("StatusLineNC")
       paint_it_black("WinSeparator")
+
+      -- Highlight global-scope variables in a distinct color (bold parameter orange)
+      local param = vim.api.nvim_get_hl(0, { name = "@variable.parameter", link = false }).fg
+      vim.api.nvim_set_hl(0, "@lsp.typemod.variable.globalScope", { fg = param, bold = true })
     end,
   })
 
