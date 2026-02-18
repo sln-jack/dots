@@ -1,2 +1,7 @@
 #!/bin/sh
+
+while xsetroot -name "$(date '+%a %-m/%-d %H:%M %Z') | $(TZ=UTC date '+%H:%M %Z')"; do
+	sleep 1
+done &
+
 exec dwm
