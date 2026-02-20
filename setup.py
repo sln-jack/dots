@@ -325,6 +325,12 @@ def eza(d: Path, v: str):
     build_cargo(d, v, 'eza')
 
 @pkg()
+def fzf(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'darwin_arm64'}[(sys, arch)]
+    extract(f'https://github.com/junegunn/fzf/releases/download/v{v}/fzf-{v}-{tag}.tar.gz', WORK)
+    install(WORK/'fzf', d)
+
+@pkg()
 def ripgrep(d: Path, v: str):
     tag = triple.replace('gnu', 'musl')
     extract(f'https://github.com/BurntSushi/ripgrep/releases/download/{v}/ripgrep-{v}-{tag}.tar.gz', WORK)
@@ -726,6 +732,7 @@ if __name__ == '__main__':
     zoxide('0.9.8')
     direnv('2.37.1')
     # Tools
+    fzf('0.68.0')
     ripgrep('15.1.0')
     eza('0.23.4')
     fd('10.3.0')
