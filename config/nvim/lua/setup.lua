@@ -369,19 +369,6 @@ local plugins = {
       vim.notify = notify
     end,
   },
-  { 'isrothy/neominimap.nvim', lazy = false, keys = { { '<leader>m', '<cmd>Neominimap WinToggle<cr>' } },
-    init = function()
-      vim.g.neominimap = {
-        auto_enable = true, layout = 'float', diagnostic = { enabled = true },
-        search = { enabled = true }, treesitter = { enabled = true }, mark = { enabled = true },
-      }
-      vim.opt.wrap = false
-      vim.opt.sidescrolloff = 36
-      local api = require 'neominimap.api'
-      vim.api.nvim_create_autocmd('VimEnter', { callback = function() pcall(api.win.disable, vim.api.nvim_get_current_win()) end })
-      vim.api.nvim_create_autocmd('WinNew', { callback = function() pcall(api.win.disable, vim.api.nvim_get_current_win()) end })
-    end,
-  },
   {
     'christoomey/vim-tmux-navigator',
     options = {},
