@@ -351,6 +351,12 @@ def dust(d: Path, v: str):
     build_cargo(d, v, 'du-dust')
 
 @pkg()
+def gh(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'macOS_arm64'}[(sys, arch)]
+    extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.tar.gz', WORK)
+    sh(f'mv {WORK}/gh_{v}_{tag}/* {d}/')
+
+@pkg()
 def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
 
@@ -739,6 +745,7 @@ if __name__ == '__main__':
     sd('1.0.0')
     dust('1.2.4')
     dua('2.32.2')
+    gh('2.83.2')
 
     # Coding
     nvim('0.11.4')
