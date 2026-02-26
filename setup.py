@@ -351,6 +351,12 @@ def dust(d: Path, v: str):
     build_cargo(d, v, 'du-dust')
 
 @pkg()
+def bun(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-aarch64'}[(sys, arch)]
+    extract(f'https://github.com/oven-sh/bun/releases/download/bun-v{v}/bun-{tag}.zip', WORK)
+    install(WORK/f'bun-{tag}/bun', d)
+
+@pkg()
 def gh(d: Path, v: str):
     tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'macOS_arm64'}[(sys, arch)]
     extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.tar.gz', WORK)
@@ -724,6 +730,7 @@ if __name__ == '__main__':
     meson('1.9.2')
     rust('nightly')
     node('24.12.0')
+    bun('1.3.9')
 
     # Libs
     # Tmux
