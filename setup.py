@@ -450,6 +450,11 @@ def tcpreplay(d: Path, v: str):
         f'CFLAGS="-I{libpcap}/include" LDFLAGS="-L{libpcap}/lib"',
     )
 
+@pkg()
+def netcat(d: Path, v: str):
+    extract(f'https://sourceforge.net/projects/netcat/files/netcat/{v}/netcat-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'netcat-{v}', d)
+
 @pkg(deps={'automake'})
 def vde2(d: Path, v: str):
     extract(f'https://github.com/virtualsquare/vde-2/archive/refs/tags/v{v}.tar.gz', WORK)
@@ -795,6 +800,7 @@ if __name__ == '__main__':
     # Networking
     libpcap('1.10.5')
     libxml2('2.15.1')
+    netcat('0.7.1')
     tcpreplay('4.5.1')
     if sys == 'linux': vde2('2.3.3')
     gping('1.20.1')
