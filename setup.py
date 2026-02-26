@@ -16,12 +16,13 @@ PREFIX.mkdir(parents=True, exist_ok=True)
 sys  = platform.system().lower()  # linux  | darwin
 arch = platform.machine().lower() # x86_64 | arm64
 host = os.uname().nodename        # navi
-def hosts(*patterns): return any(fnmatch.fnmatch(host, p) for p in patterns)
+cpus = str(os.cpu_count() or 1)
 triple = {
     ('x86_64','linux'): 'x86_64-unknown-linux-gnu',
     ('arm64','darwin'): 'aarch64-apple-darwin',
 }[(arch, sys)]
 
+def hosts(*patterns): return any(fnmatch.fnmatch(host, p) for p in patterns)
 if hosts('dsk-*'):  kind = 'desktop'
 else:               kind = 'server'
 
@@ -29,6 +30,7 @@ print('Probing environment...')
 print(f'  Host: {host}')
 print(f'  Kind: {kind}')
 print(f'  System: {sys}-{arch}')
+print(f'  CPUs: {cpus}')
 
 #------ Primitives -------------------------------------------------------------------------------------------
 
@@ -74,12 +76,16 @@ def install(exe: Path, d: Path):
     sh(f'chmod +x {exe}')
     sh(f'mv {exe} {d}/bin/')
 
+def lnr(src, dst):
+    """Relative symlinks into dst. src may be a shell glob. Both must share a common parent."""
+    sh(f'cd {dst} && for f in {src}; do ln -sf "../${{f#{dst.parent}/}}" .; done')
+
 def build_autotools(src: Path, prefix: Path, *args, env: str = '', use_clang: bool = False):
     clang = PKGS/'clang/bin/clang'
     clang = f'CC={clang} CXX={clang}++' if use_clang else ''
 
     sh(f'{env} ./configure --prefix={prefix} {clang} {" ".join(args)}', cwd=src)
-    sh(f'{env} make -j$(nproc) && {env} make install', cwd=src)
+    sh(f'{env} make -j{cpus} && {env} make install', cwd=src)
 
 def build_automake(src: Path, prefix: Path, *args, env: str = ''):
     automake = PKGS/'automake'
@@ -94,7 +100,7 @@ def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = False, targets
     compiler = f'-DCMAKE_C_COMPILER={clang} -DCMAKE_CXX_COMPILER={clang}++' if use_clang else ''
     build = WORK/f'{prefix.name}-build'
     sh(f'{env} {cmake} -S {src} -B {build} {compiler} -DCMAKE_INSTALL_PREFIX={prefix} -DCMAKE_BUILD_TYPE=Release {" ".join(args)}')
-    sh(f'{env} {cmake} --build {build} {targets} -j$(nproc)')
+    sh(f'{env} {cmake} --build {build} {targets} -j{cpus}')
     if len(components) == 0:
         sh(f'{cmake} --install {build}')
     else:
@@ -128,13 +134,12 @@ def m4(d: Path, v: str):
 @pkg()
 def pkgconfig(d: Path, v: str):
     extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
-    build_autotools(WORK/f'pkg-config-{v}', d)
+    build_autotools(WORK/f'pkg-config-{v}', d, '--with-internal-glib',
+        env='CFLAGS="-Wno-int-conversion"')
 
 @pkg()
 def ninja(d: Path, v: str):
-    platform = {
-        'x86_64-unknown-linux-gnu': 'linux'
-    }[triple]
+    platform = {('linux','x86_64'):'linux', ('darwin','arm64'):'mac'}[(sys, arch)]
     extract(f'https://github.com/ninja-build/ninja/releases/download/v{v}/ninja-{platform}.zip', WORK)
     install(WORK/'ninja', d)
 
@@ -156,7 +161,7 @@ def automake(d: Path, v: str):
 
 @pkg()
 def cmake(d: Path, v: str):
-    tag = {('darwin','arm64'):'macos-universal', ('linux','x86_64'):'linux-x86_64'}[(sys, arch)]
+    tag = {('linux','x86_64'):'linux-x86_64', ('darwin','arm64'):'macos-universal'}[(sys, arch)]
     extract(f'https://github.com/Kitware/CMake/releases/download/v{v}/cmake-{v}-{tag}.tar.gz', WORK)
     if sys=='darwin':
         sh(f'mv {WORK}/cmake-{v}-{tag}/CMake.app/Contents/{{bin,share}} {d}')
@@ -165,16 +170,26 @@ def cmake(d: Path, v: str):
     sh(f'rm -f {d}/bin/cmake-gui')
 
 @pkg()
+def openssl(d: Path, v: str):
+    extract(f'https://github.com/openssl/openssl/releases/download/openssl-{v}/openssl-{v}.tar.gz', WORK)
+    sh(f'./config --prefix={d} --openssldir={d}/ssl', cwd=WORK/f'openssl-{v}')
+    sh(f'make -j{cpus} && make install_sw', cwd=WORK/f'openssl-{v}')
+
+@pkg()
 def sqlite(d: Path, v: str):
     extract(f'https://www.sqlite.org/2025/sqlite-autoconf-{v}.tar.gz', WORK)
     build_autotools(WORK/f'sqlite-autoconf-{v}', d)
 
-@pkg(deps={'sqlite'})
+@pkg(deps={'sqlite', 'openssl', 'pkgconfig'})
 def python(d: Path, v: str):
     sqlite = PKGS/'sqlite/lib'
+    openssl_dir = PKGS/'openssl'
+    pkg_config_path = f'{openssl_dir}/lib/pkgconfig:{sqlite}/pkgconfig'
+    pkg_config = f'{PKGS}/pkgconfig/bin/pkg-config'
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
     build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules',
-        f'PKG_CONFIG_PATH="{sqlite}/pkgconfig"',
+        f'--with-openssl={openssl_dir}', '--with-openssl-rpath=auto',
+        f'PKG_CONFIG="{pkg_config}"', f'PKG_CONFIG_PATH="{pkg_config_path}"',
         env=f'LD_LIBRARY_PATH="{sqlite}"')
 
 @pkg(deps={'python', 'cmake'})
@@ -237,7 +252,7 @@ def ncurses(d: Path, v: str):
     build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
         f'--with-pkg-config-libdir={d}/lib/pkgconfig')
 
-@pkg(deps={'cmake', 'libevent', 'libutf8proc', 'ncurses'})
+@pkg(deps={'cmake', 'pkgconfig', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
     ncurses = PKGS/'ncurses/lib/pkgconfig'
     libevent = PKGS/'libevent/lib/pkgconfig'
@@ -251,6 +266,7 @@ def tmux(d: Path, v: str):
     extract(f'https://github.com/tmux/tmux/releases/download/{v}/tmux-{v}.tar.gz', WORK)
     build_autotools(
         WORK/f'tmux-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconfig/bin/pkg-config"',
         f'PKG_CONFIG_PATH="{pkg_config_path}"',
         flags,
     )
@@ -286,14 +302,14 @@ def claude(d: Path, v: str):
 
 @pkg()
 def sqlcmd(d: Path, v: str):
-    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
+    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
     sh(f'mkdir -p {d}/bin')
     extract(f'https://github.com/microsoft/go-sqlcmd/releases/download/v{v}/sqlcmd-{tag}.tar.bz2', d/'bin')
-    sh(f'rm {d}/bin/sqlcmd_debug {d}/bin/NOTICE.md')
+    sh(f'rm -f {d}/bin/sqlcmd_debug {d}/bin/NOTICE.md')
 
 @pkg()
 def duckdb(d: Path, v: str):
-    tag = {('linux','x86_64'):'linux-amd64'}[(sys, arch)]
+    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'osx-universal'}[(sys, arch)]
     sh(f'mkdir {d}/bin')
     extract(f'https://install.duckdb.org/v{v}/duckdb_cli-{tag}.zip', d/'bin')
 
@@ -301,7 +317,7 @@ def duckdb(d: Path, v: str):
 def lua_ls(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
     extract(f'https://github.com/LuaLS/lua-language-server/releases/download/{v}/lua-language-server-{v}-{tag}.tar.gz', d/'lua_ls')
-    sh(f'mkdir {d}/bin && ln -sfr {d}/lua_ls/bin/lua-language-server {d}/bin/')
+    sh(f'mkdir {d}/bin && ln -sf ../lua_ls/bin/lua-language-server {d}/bin/')
 
 @pkg()
 def starship(d: Path, v: str):
@@ -359,10 +375,11 @@ def bun(d: Path, v: str):
 @pkg()
 def gh(d: Path, v: str):
     tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'macOS_arm64'}[(sys, arch)]
-    extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.tar.gz', WORK)
+    ext = 'zip' if sys == 'darwin' else 'tar.gz'
+    extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.{ext}', WORK)
     sh(f'mv {WORK}/gh_{v}_{tag}/* {d}/')
 
-@pkg()
+@pkg(deps={'rust'})
 def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
 
@@ -464,17 +481,17 @@ def neovide(d: Path, v: str):
 def zen(d: Path, v: str):
     extract(f'https://github.com/zen-browser/desktop/releases/download/{v}/zen.linux-x86_64.tar.xz', WORK)
     sh(f'mv {WORK}/zen {d}/')
-    sh(f'mkdir -p {d}/bin && ln -sfr {d}/zen/zen {d}/bin/zen')
+    sh(f'mkdir -p {d}/bin && ln -sf ../zen/zen {d}/bin/zen')
 
 @pkg()
 def dwm(d: Path, v: str):
     extract(f'https://github.com/sln-jack/dwm/archive/refs/heads/master.tar.gz', WORK)
-    sh(f'rm -f {WORK}/dwm-master/config.h && make -j$(nproc) && DESTDIR={d} make install', cwd=WORK/'dwm-master')
+    sh(f'rm -f {WORK}/dwm-master/config.h && make -j{cpus} && DESTDIR={d} make install', cwd=WORK/'dwm-master')
 
 @pkg()
 def dmenu(d: Path, v: str):
     extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
-    sh(f'rm -f {WORK}/dmenu-master/config.h && make -j$(nproc) && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
+    sh(f'rm -f {WORK}/dmenu-master/config.h && make -j{cpus} && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
 
 # TODO this is bad
 @pkg(deps={'rust'})
@@ -723,6 +740,7 @@ if __name__ == '__main__':
     ninja('1.13.2')
     m4('1.4.20')
     automake('1.18.1')
+    openssl('3.6.1')
     sqlite('3510100')
     python('3.14.0')
     if sys=='linux': clang('21.1.0')
@@ -752,7 +770,7 @@ if __name__ == '__main__':
     sd('1.0.0')
     dust('1.2.4')
     dua('2.32.2')
-    gh('2.83.2')
+    gh('2.87.3')
 
     # Coding
     nvim('0.11.4')
@@ -770,11 +788,8 @@ if __name__ == '__main__':
     # Networking
     libpcap('1.10.5')
     libxml2('2.15.1')
-    #wireshark('4.6.2')
-    wireshark('4.2.0-sln')
-    termshark('2.4.0')
     tcpreplay('4.5.1')
-    vde2('2.3.3')
+    if sys == 'linux': vde2('2.3.3')
     gping('1.20.1')
     oha('1.12.1')
     snitch('0.2.2')
@@ -850,7 +865,7 @@ if __name__ == '__main__':
         for pkg in sorted(PKGS.iterdir()):
             src = pkg/dir
             if src.is_dir():
-                sh(f'ln -sfr {src}/* {dst}/')
+                lnr(f'{src}/*', dst)
 
     # Python site-packages: symlink all package site-packages into prefix/lib/python/site-packages
     dst = PREFIX/'lib'/'python'/'site-packages'
@@ -859,11 +874,14 @@ if __name__ == '__main__':
         for item in pydir.iterdir():
             link = dst/item.name
             if not link.exists():
-                link.symlink_to(item)
+                link.symlink_to(os.path.relpath(item, dst))
     # Config
-    def conf(src: Path, dst: Path = None):
-        sh(f'mkdir -p $(dirname {PREFIX}/config/{dst or src})')
-        sh(f'ln -sfr {ROOT}/config/{src} {PREFIX}/config/{dst or src}')
+    def conf(src_name, dst_name=None):
+        target = ROOT/'config'/src_name
+        link = PREFIX/'config'/(dst_name or src_name)
+        rel = os.path.relpath(target, link.parent)
+        sh(f'mkdir -p {link.parent}')
+        sh(f'ln -sf {rel} {link}')
 
     sh(f'rm -rf {PREFIX}/config && mkdir {PREFIX}/config')
     conf('git')
