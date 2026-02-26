@@ -751,7 +751,7 @@ if __name__ == '__main__':
     ninja('1.13.2')
     m4('1.4.20')
     automake('1.18.1')
-    openssl('3.6.1')
+    if sys == 'macos': openssl('3.6.1')
     sqlite('3510100')
     python('3.14.0')
     if sys=='linux': clang('21.1.0')
