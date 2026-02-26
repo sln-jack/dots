@@ -786,7 +786,7 @@ if __name__ == '__main__':
     uv('0.9.18')
     # AI
     codex('0.98.0')
-    claude('2.1.32')
+    claude('2.1.59')
     # DB
     sqlcmd('1.9.0')
     duckdb('1.4.4')
