@@ -464,6 +464,12 @@ def oha(d: Path, v: str):
     build_cargo(d, v, 'oha')
 
 @pkg()
+def influx(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'linux-arm64'}[(sys, arch)]
+    extract(f'https://dl.influxdata.com/influxdb/releases/influxdb2-client-{v}-{tag}.tar.gz', WORK)
+    install(WORK/'influx', d)
+
+@pkg()
 def snitch(d: Path, v: str):
     tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'darwin_arm64'}[(sys, arch)]
     extract(f'https://github.com/karol-broda/snitch/releases/download/v{v}/snitch_{v}_{tag}.tar.gz', WORK)
@@ -784,6 +790,7 @@ if __name__ == '__main__':
     # DB
     sqlcmd('1.9.0')
     duckdb('1.4.4')
+    influx('2.7.5')
 
     # Networking
     libpcap('1.10.5')
