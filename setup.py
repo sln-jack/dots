@@ -894,8 +894,10 @@ if __name__ == '__main__':
     conf('neovide.toml', 'neovide/config.toml')
     conf('runst/runst.toml')
     conf('podman-storage.conf', 'containers/storage.conf')
+    if sys == 'linux':
+        conf('fish/linux.fish', 'fish/conf.d/linux.fish')
     if sys == 'darwin':
-        conf('fish/conf.d/macos.fish')
+        conf('fish/macos.fish', 'fish/conf.d/macos.fish')
         conf('ghostty.conf', 'ghostty/config')
         conf('aerospace.toml', 'aerospace/aerospace.toml')
     sh(f'mkdir -p {PREFIX}/config/codex')
