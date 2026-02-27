@@ -320,6 +320,14 @@ def lua_ls(d: Path, v: str):
     sh(f'mkdir {d}/bin && ln -sf ../lua_ls/bin/lua-language-server {d}/bin/')
 
 @pkg()
+def postgres(d: Path, v: str):
+    extract(f'https://ftp.postgresql.org/pub/source/v{v}/postgresql-{v}.tar.bz2', WORK)
+    src = WORK/f'postgresql-{v}'
+    sh(f'./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
+    for t in ['src/interfaces/libpq', 'src/bin/pg_dump', 'src/bin/psql']:
+        sh(f'make -j{cpus} && make install', cwd=src/t)
+
+@pkg()
 def starship(d: Path, v: str):
     extract(f'https://github.com/starship/starship/releases/download/v{v}/starship-{triple}.tar.gz', WORK)
     install(WORK/'starship', d)
@@ -793,6 +801,7 @@ if __name__ == '__main__':
     codex('0.98.0')
     claude('2.1.59')
     # DB
+    postgres('18.3')
     sqlcmd('1.9.0')
     duckdb('1.4.4')
     influx('2.7.5')
