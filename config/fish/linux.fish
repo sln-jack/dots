@@ -1,6 +1,6 @@
 # Start SSH agent
-if test -z (pgrep -U $USER ssh-agent)
-  eval (ssh-agent -c 2>/dev/null)
-  set -Ux SSH_AUTH_SOCK $SSH_AUTH_SOCK
-  set -Ux SSH_AGENT_PID $SSH_AGENT_PID
+set -gx SSH_AUTH_SOCK $XDG_RUNTIME_DIR/ssh-agent.sock
+if not test -S $SSH_AUTH_SOCK
+  pkill -U $USER ssh-agent 2>/dev/null
+  ssh-agent -a $SSH_AUTH_SOCK -c 2>/dev/null | source
 end
