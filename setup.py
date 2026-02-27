@@ -328,6 +328,12 @@ def postgres(d: Path, v: str):
         sh(f'make -j{cpus} && make install', cwd=src/t)
 
 @pkg()
+def just(d: Path, v: str):
+    tag = {('linux','x86_64'):'x86_64-unknown-linux-musl', ('darwin','arm64'):'aarch64-apple-darwin'}[(sys, arch)]
+    extract(f'https://github.com/casey/just/releases/download/{v}/just-{v}-{tag}.tar.gz', WORK)
+    install(WORK/'just', d)
+
+@pkg()
 def starship(d: Path, v: str):
     extract(f'https://github.com/starship/starship/releases/download/v{v}/starship-{triple}.tar.gz', WORK)
     install(WORK/'starship', d)
@@ -782,6 +788,7 @@ if __name__ == '__main__':
     zoxide('0.9.8')
     direnv('2.37.1')
     # Tools
+    just('1.46.0')
     fzf('0.68.0')
     ripgrep('15.1.0')
     eza('0.23.4')
