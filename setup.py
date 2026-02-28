@@ -308,6 +308,17 @@ def sqlcmd(d: Path, v: str):
     sh(f'rm -f {d}/bin/sqlcmd_debug {d}/bin/NOTICE.md')
 
 @pkg()
+def zig(d: Path, v: str):
+    tag = {('linux','x86_64'):'x86_64-linux', ('darwin','arm64'):'aarch64-macos'}[(sys, arch)]
+    extract(f'https://ziglang.org/download/{v}/zig-{tag}-{v}.tar.xz', WORK)
+    sh(f'mv {WORK}/zig-{tag}-{v} {d}/zig')
+    sh(f'mkdir -p {d}/bin && ln -sf ../zig/zig {d}/bin/')
+
+@pkg(deps={'rust', 'zig'})
+def cargo_zigbuild(d: Path, v: str):
+    build_cargo(d, v, 'cargo-zigbuild')
+
+@pkg()
 def duckdb(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'osx-universal'}[(sys, arch)]
     sh(f'mkdir {d}/bin')
@@ -772,6 +783,8 @@ if __name__ == '__main__':
     cmake('3.31.9')
     meson('1.9.2')
     rust('nightly')
+    zig('0.15.2')
+    cargo_zigbuild('0.22.1')
     node('24.12.0')
     bun('1.3.9')
 
@@ -808,7 +821,7 @@ if __name__ == '__main__':
     codex('0.98.0')
     claude('2.1.59')
     # DB
-    postgres('18.3')
+    if sys == 'linux': postgres('18.3')
     sqlcmd('1.9.0')
     duckdb('1.4.4')
     influx('2.7.5')
@@ -816,7 +829,7 @@ if __name__ == '__main__':
     # Networking
     libpcap('1.10.5')
     libxml2('2.15.1')
-    netcat('0.7.1')
+    if sys == 'linux': netcat('0.7.1')
     tcpreplay('4.5.1')
     if sys == 'linux': vde2('2.3.3')
     gping('1.20.1')
