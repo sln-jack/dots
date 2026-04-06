@@ -803,7 +803,7 @@ if __name__ == '__main__':
     # Lua
     lua_ls('3.15.0')
     # Python
-    uv('0.9.18')
+    uv('0.11.3')
     # AI
     codex('0.98.0')
     claude('2.1.59')
