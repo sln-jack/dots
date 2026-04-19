@@ -131,6 +131,12 @@ def m4(d: Path, v: str):
     extract(f'https://ftp.gnu.org/gnu/m4/m4-{v}.tar.xz', WORK)
     build_autotools(WORK/f'm4-{v}', d)
 
+@pkg(deps={'m4'})
+def bison(d: Path, v: str):
+    m4 = PKGS/'m4'
+    extract(f'https://ftp.gnu.org/gnu/bison/bison-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'bison-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
+
 @pkg()
 def pkgconf(d: Path, v: str):
     extract(f'https://distfiles.dereferenced.org/pkgconf/pkgconf-{v}.tar.xz', WORK)
@@ -251,8 +257,9 @@ def ncurses(d: Path, v: str):
     build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
         f'--with-pkg-config-libdir={d}/lib/pkgconfig')
 
-@pkg(deps={'cmake', 'pkgconfig', 'libevent', 'libutf8proc', 'ncurses'})
+@pkg(deps={'cmake', 'pkgconf', 'bison', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
+    bison = PKGS/'bison'
     ncurses = PKGS/'ncurses/lib/pkgconfig'
     libevent = PKGS/'libevent/lib/pkgconfig'
     pkg_config_path = f'{ncurses}:{libevent}'
@@ -265,7 +272,8 @@ def tmux(d: Path, v: str):
     extract(f'https://github.com/tmux/tmux/releases/download/{v}/tmux-{v}.tar.gz', WORK)
     build_autotools(
         WORK/f'tmux-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconfig/bin/pkg-config"',
+        f'PATH="{bison}/bin:$PATH"',
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkg-config"',
         f'PKG_CONFIG_PATH="{pkg_config_path}"',
         flags,
     )
@@ -329,13 +337,14 @@ def lua_ls(d: Path, v: str):
     extract(f'https://github.com/LuaLS/lua-language-server/releases/download/{v}/lua-language-server-{v}-{tag}.tar.gz', d/'lua_ls')
     sh(f'mkdir {d}/bin && ln -sf ../lua_ls/bin/lua-language-server {d}/bin/')
 
-@pkg()
+@pkg(deps={'bison'})
 def postgres(d: Path, v: str):
+    bison = PKGS/'bison'
     extract(f'https://ftp.postgresql.org/pub/source/v{v}/postgresql-{v}.tar.bz2', WORK)
     src = WORK/f'postgresql-{v}'
-    sh(f'./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
+    sh(f'PATH="{bison}/bin:$PATH" ./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
     for t in ['src/interfaces/libpq', 'src/bin/pg_dump', 'src/bin/psql']:
-        sh(f'make -j{cpus} && make install', cwd=src/t)
+        sh(f'PATH="{bison}/bin:$PATH" make -j{cpus} && make install', cwd=src/t)
 
 @pkg()
 def just(d: Path, v: str):
@@ -774,6 +783,7 @@ if __name__ == '__main__':
     pkgconf('1.1.0')
     ninja('1.13.2')
     m4('1.4.21')
+    bison('3.8.2')
     automake('1.18.1')
     if sys == 'macos': openssl('3.6.1')
     sqlite('3510100')
