@@ -132,10 +132,9 @@ def m4(d: Path, v: str):
     build_autotools(WORK/f'm4-{v}', d)
 
 @pkg()
-def pkgconfig(d: Path, v: str):
-    extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
-    build_autotools(WORK/f'pkg-config-{v}', d, '--with-internal-glib',
-        env='CFLAGS="-Wno-int-conversion"')
+def pkgconf(d: Path, v: str):
+    extract(f'https://distfiles.dereferenced.org/pkgconf/pkgconf-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'pkgconf-{v}', d)
 
 @pkg()
 def ninja(d: Path, v: str):
@@ -772,14 +771,14 @@ if __name__ == '__main__':
     print('\nAdding packages: base')
 
     # Toolchains
-    pkgconfig('0.29.2')
+    pkgconf('1.1.0')
     ninja('1.13.2')
-    m4('1.4.20')
+    m4('1.4.21')
     automake('1.18.1')
     if sys == 'macos': openssl('3.6.1')
     sqlite('3510100')
-    python('3.14.0')
-    if sys=='linux': clang('21.1.0')
+    python('3.14.4')
+    if sys=='linux': clang('22.1.3')
     cmake('3.31.9')
     meson('1.9.2')
     rust('nightly')
