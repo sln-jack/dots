@@ -24,7 +24,7 @@ def netcoredbg(d: Path, v: str):
     build_cmake(WORK/f'netcoredbg-{v}', d, f'-DCMAKE_C_COMPILER={cc}', f'-DCMAKE_CXX_COMPILER={cxx}')
     sh(f'mkdir {d}/bin && ln -sf ../netcoredbg {d}/bin/')
 
-if sys == 'linux':
+if hosts('dsk-*') and sys == 'linux':
     # C#
     dotnet('10.0.100-rc.2.25502.107', ['9.0.306', '8.0.415'])
     roslyn_ls('2.93.22')

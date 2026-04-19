@@ -23,8 +23,8 @@ triple = {
 }[(arch, sys)]
 
 def hosts(*patterns): return any(fnmatch.fnmatch(host, p) for p in patterns)
-if hosts('dsk-*'):  kind = 'desktop'
-else:               kind = 'server'
+if hosts('monolith', 'dsk-*'): kind = 'desktop'
+else: kind = 'server'
 
 print('Probing environment...')
 print(f'  Host: {host}')
