@@ -818,7 +818,7 @@ if __name__ == '__main__':
     uv('0.9.18')
     # AI
     codex('0.98.0')
-    claude('2.1.59')
+    claude('2.1.114')
     # DB
     if sys == 'linux': postgres('18.3')
     sqlcmd('1.9.0')
