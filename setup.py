@@ -482,25 +482,10 @@ def libpcap(d: Path, v: str):
     extract(f'https://www.tcpdump.org/release/libpcap-{v}.tar.xz', WORK)
     build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus', '--enable-shared', '--enable-static', env=f'PATH="{bison}/bin:{flex}/bin:$PATH"')
 
-@pkg(deps={'libpcap'})
-def tcpreplay(d: Path, v: str):
-    libpcap = PKGS/'libpcap'
-    extract(f'https://github.com/appneta/tcpreplay/releases/download/v{v}/tcpreplay-{v}.tar.xz', WORK)
-    build_autotools(
-        WORK/f'tcpreplay-{v}', d,
-        f'--with-libpcap={libpcap}',
-        f'CFLAGS="-I{libpcap}/include" LDFLAGS="-L{libpcap}/lib"',
-    )
-
 @pkg()
 def netcat(d: Path, v: str):
     extract(f'https://sourceforge.net/projects/netcat/files/netcat/{v}/netcat-{v}.tar.gz', WORK)
     build_autotools(WORK/f'netcat-{v}', d)
-
-@pkg(deps={'automake'})
-def vde2(d: Path, v: str):
-    extract(f'https://github.com/virtualsquare/vde-2/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_automake(WORK/f'vde-2-{v}', d)
 
 @pkg(deps={'rust'})
 def gping(d: Path, v: str):
@@ -849,8 +834,6 @@ if __name__ == '__main__':
     libpcap('1.10.5')
     libxml2('2.15.1')
     if sys == 'linux': netcat('0.7.1')
-    tcpreplay('4.5.1')
-    if sys == 'linux': vde2('2.3.3')
     gping('1.20.1')
     oha('1.12.1')
     snitch('0.2.2')
