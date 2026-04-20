@@ -1,6 +1,0 @@
-[colors.primary]
-background = "#000000"
-
-[font]
-normal = { family = "Iosevka Nerd Font Mono", style = "Regular" }
-size = 9.0

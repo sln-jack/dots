@@ -111,14 +111,15 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     clang = PKGS/'clang/bin/clang'
     meson = f'PYTHONPATH="{PKGS}/meson/lib/python3.14/site-packages" {PKGS}/meson/bin/meson'
     ninja = PKGS/'ninja'
-    sh(f'{env} PATH="{ninja}/bin:$PATH" CC={clang} CXX={clang}++ CC_LD=lld CXX_LD=lld {meson} setup build --prefix={prefix} {" ".join(args)}', cwd=src)
-    sh(f'{meson} compile -C build', cwd=src)
-    sh(f'{meson} install -C build', cwd=src)
+    path = f'PATH="{ninja}/bin:$PATH"'
+    sh(f'{env} {path} CC={clang} CXX={clang}++ CC_LD=lld CXX_LD=lld {meson} setup build --prefix={prefix} {" ".join(args)}', cwd=src)
+    sh(f'{env} {path} {meson} compile -C build', cwd=src)
+    sh(f'{env} {path} {meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str):
+def build_cargo(d: Path, v: str, crate: str, env: str = ''):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
-    sh(f'{cargo} install {crate}@{v} --locked --root {d}')
+    sh(f'{env} {cargo} install {crate}@{v} --locked --root {d}')
 
 def build_pip(d: Path, v: str, package: str):
     pip = PKGS/'python/bin/pip3'
@@ -147,6 +148,17 @@ def flex(d: Path, v: str):
 def pkgconf(d: Path, v: str):
     extract(f'https://distfiles.dereferenced.org/pkgconf/pkgconf-{v}.tar.xz', WORK)
     build_autotools(WORK/f'pkgconf-{v}', d)
+    sh(f'ln -sf pkgconf {d}/bin/pkg-config')
+
+#@pkg(deps={'glib', 'pkgconf', 'pcre2', 'libffi'})
+#def pkgconfig(d: Path, v: str):
+#    pkgconf = PKGS/'pkgconf/bin/pkgconf'
+#    glib = PKGS/'glib/lib/pkgconfig'
+#    pcre2 = PKGS/'pcre2/lib/pkgconfig'
+#    libffi = PKGS/'libffi/lib/pkgconfig'
+#    pkg_config_path = f'{glib}:{pcre2}:{libffi}'
+#    extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
+#    build_autotools(WORK/f'pkg-config-{v}', d, f'PKG_CONFIG="{pkgconf}"', f'PKG_CONFIG_PATH="{pkg_config_path}"')
 
 @pkg()
 def ninja(d: Path, v: str):
@@ -191,12 +203,12 @@ def sqlite(d: Path, v: str):
     extract(f'https://www.sqlite.org/2025/sqlite-autoconf-{v}.tar.gz', WORK)
     build_autotools(WORK/f'sqlite-autoconf-{v}', d)
 
-@pkg(deps={'sqlite', 'openssl', 'pkgconfig'})
+@pkg(deps={'sqlite', 'openssl', 'pkgconf'})
 def python(d: Path, v: str):
     sqlite = PKGS/'sqlite/lib'
     openssl_dir = PKGS/'openssl'
     pkg_config_path = f'{openssl_dir}/lib/pkgconfig:{sqlite}/pkgconfig'
-    pkg_config = f'{PKGS}/pkgconfig/bin/pkg-config'
+    pkg_config = f'{PKGS}/pkgconf/bin/pkgconf'
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
     build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules',
         f'--with-openssl={openssl_dir}', '--with-openssl-rpath=auto',
@@ -261,7 +273,16 @@ def libutf8proc(d: Path, v: str):
 def ncurses(d: Path, v: str):
     extract(f'https://invisible-island.net/archives/ncurses/ncurses-{v}.tar.gz', WORK)
     build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
-        f'--with-pkg-config-libdir={d}/lib/pkgconfig')
+        '--with-versioned-syms', f'--with-pkg-config-libdir={d}/lib/pkgconfig')
+
+@pkg(deps={'ncurses'})
+def readline(d: Path, v: str):
+    ncurses = PKGS/'ncurses'
+    extract(f'https://ftp.gnu.org/gnu/readline/readline-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'readline-{v}', d,
+        '--with-curses', '--with-shared-termcap-library', '--enable-multibyte',
+        f'CPPFLAGS=-I{ncurses}/include', f'LDFLAGS=-L{ncurses}/lib',
+        env='bash_cv_termcap_lib=libncursesw')
 
 @pkg(deps={'cmake', 'pkgconf', 'bison', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
@@ -279,7 +300,7 @@ def tmux(d: Path, v: str):
     build_autotools(
         WORK/f'tmux-{v}', d,
         f'PATH="{bison}/bin:$PATH"',
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkg-config"',
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
         f'PKG_CONFIG_PATH="{pkg_config_path}"',
         flags,
     )
@@ -507,13 +528,312 @@ def snitch(d: Path, v: str):
     extract(f'https://github.com/karol-broda/snitch/releases/download/v{v}/snitch_{v}_{tag}.tar.gz', WORK)
     install(WORK/'snitch', d)
 
-@pkg(deps={'rust'})
-def alacritty(d: Path, v: str):
-    build_cargo(d, v, 'alacritty')
+@pkg(deps={'pkgconf'})
+def xorgproto(d: Path, v: str):
+    extract(f'https://www.x.org/archive/individual/proto/xorgproto-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'xorgproto-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"')
 
-@pkg(deps={'rust'})
+@pkg(deps={'pkgconf'})
+def xtrans(d: Path, v: str):
+    extract(f'https://www.x.org/archive/individual/lib/xtrans-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'xtrans-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"')
+
+@pkg(deps={'xorgproto'})
+def libxau(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    extract(f'https://www.x.org/archive/individual/lib/libXau-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXau-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{xorgproto}"')
+
+@pkg(deps={'xorgproto'})
+def libxdmcp(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    extract(f'https://www.x.org/archive/individual/lib/libXdmcp-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXdmcp-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{xorgproto}"')
+
+@pkg(deps={'python', 'pkgconf'})
+def xcb_proto(d: Path, v: str):
+    python = PKGS/'python/bin/python3'
+    extract(f'https://xcb.freedesktop.org/dist/xcb-proto-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'xcb-proto-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PYTHON="{python}"')
+
+@pkg(deps={'libxau', 'libxdmcp', 'xcb_proto'})
+def libxcb(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    xcb_proto = PKGS/'xcb_proto/share/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{xcb_proto}'
+    python = PKGS/'python/bin/python3'
+    extract(f'https://xcb.freedesktop.org/dist/libxcb-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libxcb-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"',
+        f'PYTHON="{python}"')
+
+@pkg(deps={'xtrans', 'libxcb'})
+def libx11(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    xcb_proto = PKGS/'xcb_proto/share/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{xcb_proto}:{libxcb}'
+    extract(f'https://www.x.org/archive/individual/lib/libX11-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libX11-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libx11'})
+def libxext(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
+    extract(f'https://www.x.org/archive/individual/lib/libXext-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXext-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libxext'})
+def libice(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}'
+    extract(f'https://www.x.org/archive/individual/lib/libICE-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libICE-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libice'})
+def libsm(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    libice = PKGS/'libice/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}'
+    extract(f'https://www.x.org/archive/individual/lib/libSM-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libSM-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libsm'})
+def libxt(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    libice = PKGS/'libice/lib/pkgconfig'
+    libsm = PKGS/'libsm/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}'
+    extract(f'https://www.x.org/archive/individual/lib/libXt-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXt-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libxt'})
+def libxmu(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    libice = PKGS/'libice/lib/pkgconfig'
+    libsm = PKGS/'libsm/lib/pkgconfig'
+    libxt = PKGS/'libxt/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}'
+    extract(f'https://www.x.org/archive/individual/lib/libXmu-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXmu-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libx11'})
+def libxpm(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
+    extract(f'https://www.x.org/archive/individual/lib/libXpm-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXpm-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libxmu', 'libxpm'})
+def libxaw(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    libice = PKGS/'libice/lib/pkgconfig'
+    libsm = PKGS/'libsm/lib/pkgconfig'
+    libxt = PKGS/'libxt/lib/pkgconfig'
+    libxmu = PKGS/'libxmu/lib/pkgconfig'
+    libxpm = PKGS/'libxpm/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}:{libxmu}:{libxpm}'
+    extract(f'https://www.x.org/archive/individual/lib/libXaw-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXaw-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libx11'})
+def libxrender(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
+    extract(f'https://www.x.org/archive/individual/lib/libXrender-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXrender-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libxrender', 'freetype', 'fontconfig'})
+def libxft(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxrender = PKGS/'libxrender/lib/pkgconfig'
+    freetype = PKGS/'freetype/lib/pkgconfig'
+    fontconfig = PKGS/'fontconfig/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxrender}:{freetype}:{fontconfig}'
+    extract(f'https://www.x.org/archive/individual/lib/libXft-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXft-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libxext'})
+def libxinerama(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}'
+    extract(f'https://www.x.org/archive/individual/lib/libXinerama-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'libXinerama-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg()
+def gperf(d: Path, v: str):
+    extract(f'https://ftp.gnu.org/gnu/gperf/gperf-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'gperf-{v}', d)
+
+@pkg()
+def freetype(d: Path, v: str):
+    extract(f'https://download.savannah.gnu.org/releases/freetype/freetype-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'freetype-{v}', d)
+
+@pkg(deps={'freetype', 'pkgconf', 'gperf'})
+def fontconfig(d: Path, v: str):
+    gperf = PKGS/'gperf'
+    freetype = PKGS/'freetype/lib/pkgconfig'
+    extract(f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'fontconfig-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{freetype}"',
+        '--disable-docs',
+        env=f'PATH="{gperf}/bin:$PATH"')
+
+@pkg(deps={'libxaw', 'libxft', 'libxinerama', 'freetype'})
+def xterm(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    libice = PKGS/'libice/lib/pkgconfig'
+    libsm = PKGS/'libsm/lib/pkgconfig'
+    libxt = PKGS/'libxt/lib/pkgconfig'
+    libxmu = PKGS/'libxmu/lib/pkgconfig'
+    libxpm = PKGS/'libxpm/lib/pkgconfig'
+    libxaw = PKGS/'libxaw/lib/pkgconfig'
+    libxrender = PKGS/'libxrender/lib/pkgconfig'
+    libxft = PKGS/'libxft/lib/pkgconfig'
+    libxinerama = PKGS/'libxinerama/lib/pkgconfig'
+    freetype = PKGS/'freetype/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}:{libxmu}:{libxpm}:{libxaw}:{libxrender}:{libxft}:{libxinerama}:{freetype}'
+    extract(f'https://invisible-island.net/archives/xterm/xterm-{v}.tgz', WORK)
+    build_autotools(WORK/f'xterm-{v}', d,
+        '--enable-256-color', '--enable-wide-chars', '--enable-freetype',
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libx11'})
+def xinit(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
+    extract(f'https://www.x.org/archive/individual/app/xinit-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'xinit-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'libxmu'})
+def xauth(d: Path, v: str):
+    xorgproto = PKGS/'xorgproto/share/pkgconfig'
+    xtrans = PKGS/'xtrans/share/pkgconfig'
+    libxau = PKGS/'libxau/lib/pkgconfig'
+    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
+    libxcb = PKGS/'libxcb/lib/pkgconfig'
+    libx11 = PKGS/'libx11/lib/pkgconfig'
+    libxext = PKGS/'libxext/lib/pkgconfig'
+    libice = PKGS/'libice/lib/pkgconfig'
+    libsm = PKGS/'libsm/lib/pkgconfig'
+    libxt = PKGS/'libxt/lib/pkgconfig'
+    libxmu = PKGS/'libxmu/lib/pkgconfig'
+    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}:{libxmu}'
+    extract(f'https://www.x.org/archive/individual/app/xauth-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'xauth-{v}', d,
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
+        f'PKG_CONFIG_PATH="{pkg_config_path}"')
+
+@pkg(deps={'rust', 'freetype', 'fontconfig'})
 def neovide(d: Path, v: str):
-    build_cargo(d, v, 'neovide')
+    freetype_lib = PKGS/'freetype/lib'
+    fontconfig_lib = PKGS/'fontconfig/lib'
+    freetype = PKGS/'freetype/lib/pkgconfig'
+    fontconfig = PKGS/'fontconfig/lib/pkgconfig'
+    env = f'LIBRARY_PATH="{freetype_lib}:{fontconfig_lib}" PKG_CONFIG_PATH="{freetype}:{fontconfig}"'
+    build_cargo(d, v, 'neovide', env=env)
 
 @pkg()
 def zen(d: Path, v: str):
@@ -521,37 +841,35 @@ def zen(d: Path, v: str):
     sh(f'mv {WORK}/zen {d}/')
     sh(f'mkdir -p {d}/bin && ln -sf ../zen/zen {d}/bin/zen')
 
-@pkg()
+@pkg(deps={'libxft', 'libxinerama', 'freetype', 'fontconfig'})
 def dwm(d: Path, v: str):
+    incs = ' '.join(f'-I{PKGS}/{n}/include' for n in
+        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'fontconfig')) + f' -I{PKGS}/freetype/include/freetype2'
+    libs = ' '.join(f'-L{PKGS}/{n}/lib' for n in
+        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'freetype', 'fontconfig')) + ' -lX11 -lXinerama -lfontconfig -lXft'
     extract(f'https://github.com/sln-jack/dwm/archive/refs/heads/master.tar.gz', WORK)
-    sh(f'rm -f {WORK}/dwm-master/config.h && make -j{cpus} && DESTDIR={d} make install', cwd=WORK/'dwm-master')
+    sh(f'rm -f {WORK}/dwm-master/config.h && make -j{cpus} INCS="{incs}" LIBS="{libs}" && DESTDIR={d} make install', cwd=WORK/'dwm-master')
 
-@pkg()
+@pkg(deps={'libxft', 'libxinerama', 'freetype', 'fontconfig'})
 def dmenu(d: Path, v: str):
+    incs = ' '.join(f'-I{PKGS}/{n}/include' for n in
+        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'fontconfig')) + f' -I{PKGS}/freetype/include/freetype2'
+    libs = ' '.join(f'-L{PKGS}/{n}/lib' for n in
+        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'freetype', 'fontconfig')) + ' -lX11 -lXinerama -lfontconfig -lXft'
     extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
-    sh(f'rm -f {WORK}/dmenu-master/config.h && make -j{cpus} && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
+    sh(f'rm -f {WORK}/dmenu-master/config.h && make -j{cpus} INCS="{incs}" LIBS="{libs}" && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
 
-# TODO this is bad
-@pkg(deps={'rust'})
-def runst(d: Path, v: str):
-    rust = PKGS/'rust'
-    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PKG_CONFIG_PATH=/usr/lib64/pkgconfig'
-    src = Path.home()/'git/runst'
-    sh(f'{vars} cargo build --release', cwd=src)
-    sh(f'mkdir -p {d}/bin')
-    sh(f'cp {src}/target/release/runst {d}/bin/')
-
-@pkg(deps={'automake', 'pkgconfig'})
+@pkg(deps={'automake', 'pkgconf'})
 def libevdev(d: Path, v: str):
-    pkgconfig = PKGS/'pkgconfig'
+    pkgconf = PKGS/'pkgconf'
     extract(f'https://www.freedesktop.org/software/libevdev/libevdev-{v}.tar.xz', WORK)
     build_automake(
         WORK/f'libevdev-{v}', d,
         '--enable-static', '--disable-shared',
-        env=f'ACLOCAL_PATH="{pkgconfig}/share/aclocal"'
+        env=f'ACLOCAL_PATH="{pkgconf}/share/aclocal"'
     )
 
-@pkg(deps={'automake', 'pkgconfig'})
+@pkg(deps={'automake', 'pkgconf'})
 def libmtdev(d: Path, v: str):
     extract(f'https://bitmath.se/org/code/mtdev/mtdev-{v}.tar.gz', WORK)
     build_automake(
@@ -609,7 +927,7 @@ def hyprwayland_scanner(d: Path, v: str):
         env=vars)
 
 
-@pkg(deps={'automake'})
+@pkg()
 def libffi(d: Path, v: str):
     extract(f'https://github.com/libffi/libffi/releases/download/v{v}/libffi-{v}.tar.gz', WORK)
     build_autotools(WORK/f'libffi-{v}', d)
@@ -690,25 +1008,30 @@ def libzip(d: Path, v: str):
         '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
     )
 
-@pkg()
-def pcre2(d: Path, v: str):
-    extract(f'https://github.com/PCRE2Project/pcre2/archive/refs/tags/pcre2-{v}.tar.gz', WORK)
-    build_automake(WORK/f'pcre2-pcre2-{v}', d)
+#@pkg(deps={'m4'})
+#def pcre2(d: Path, v: str):
+#    m4 = PKGS/'m4'
+#    extract(f'https://github.com/PCRE2Project/pcre2/archive/refs/tags/pcre2-{v}.tar.gz', WORK)
+#    build_automake(WORK/f'pcre2-pcre2-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
 
-@pkg(deps={'pcre2'})
-def glib(d: Path, v: str):
-    src = WORK/f'glib-{v}'
-
-    pcre2 = PKGS/'pcre2/lib/pkgconfig'
-    sh(f'rm -r {src}/subprojects/gvdb')
-    sh(f'git clone https://gitlab.gnome.org/GNOME/gvdb --depth 1 --branch 2b42fc75f09dbe1cd1057580b5782b08f2dcb400 {src}/subprojects/gvdb')
-
-    extract(f'https://gitlab.gnome.org/GNOME/glib/-/archive/{v}/glib-{v}.tar.gz', WORK)
-    build_meson(
-        src, d,
-        '-Dwrap_mode=nodownload',
-        env=f'PKG_CONFIG_PATH="{pcre2}"',
-    )
+#@pkg(deps={'pcre2', 'libffi', 'pkgconf'})
+#def glib(d: Path, v: str):
+#    extract(f'https://gitlab.gnome.org/GNOME/glib/-/archive/{v}/glib-{v}.tar.gz', WORK)
+#    src = WORK/f'glib-{v}'
+#
+#    pkgconf = PKGS/'pkgconf'
+#    pcre2 = PKGS/'pcre2/lib/pkgconfig'
+#    libffi = PKGS/'libffi/lib/pkgconfig'
+#    pkg_config_path = f'{pcre2}:{libffi}'
+#    sh(f'rm -rf {src}/subprojects/gvdb')
+#    # TODO: pin a sha, dont use main
+#    sh(f'git clone https://gitlab.gnome.org/GNOME/gvdb --depth 1 {src}/subprojects/gvdb')
+#
+#    build_meson(
+#        src, d,
+#        '-Dwrap_mode=nodownload',
+#        env=f'PKG_CONFIG="{pkgconf}/bin/pkgconf" PKG_CONFIG_PATH="{pkg_config_path}"',
+#    )
 
 @pkg(deps={'glib'})
 def cairo(d: Path, v: str):
@@ -775,6 +1098,7 @@ if __name__ == '__main__':
 
     # Toolchains
     pkgconf('1.1.0')
+    #pkgconfig('0.29.2')
     ninja('1.13.2')
     m4('1.4.21')
     bison('3.8.2')
@@ -786,6 +1110,9 @@ if __name__ == '__main__':
     if sys=='linux': clang('22.1.3')
     cmake('3.31.9')
     meson('1.9.2')
+    #pcre2('10.47')
+    libffi('3.5.2')
+    #glib('2.86.5')
     rust('nightly')
     zig('0.15.2')
     cargo_zigbuild('0.22.1')
@@ -793,8 +1120,8 @@ if __name__ == '__main__':
     bun('1.3.9')
 
     # Libs
-    # Tmux
     ncurses('6.6')
+    readline('8.3')
     libevent('2.1.12-stable')
     if sys == 'darwin': libutf8proc('2.11.0')
 
@@ -840,14 +1167,35 @@ if __name__ == '__main__':
 
     # Gui
     if kind == 'desktop':
-        alacritty('0.16.1')
+        xorgproto('2025.1')
+        xtrans('1.6.0')
+        libxau('1.0.12')
+        libxdmcp('1.1.5')
+        xcb_proto('1.17.0')
+        libxcb('1.17.0')
+        libx11('1.8.13')
+        libxext('1.3.7')
+        libice('1.1.2')
+        libsm('1.2.6')
+        libxt('1.3.1')
+        libxmu('1.3.1')
+        libxpm('3.5.18')
+        libxaw('1.0.16')
+        gperf('3.3')
+        freetype('2.14.3')
+        fontconfig('2.16.0')
+        libxrender('0.9.12')
+        libxft('2.3.9')
+        libxinerama('1.1.6')
+        xterm('409')
+        xinit('1.4.4')
+        xauth('1.1.5')
         neovide('0.15.2')
         zen('1.17.12b')
 
         # X11 Windowing
         dwm('6.6')
         dmenu('5.4')
-        runst('0.2.0')
 
     # Wayland Windowing
     # libevdev('1.12.1')
@@ -867,7 +1215,6 @@ if __name__ == '__main__':
     # aquamarine('0.10.0')
     # hyprlang('0.6.7')
     # libzip('1.11.4')
-    # pcre2('10.47')
     # glib('2.86.2')
     # cairo('1.18.4')
     # hyprcursor('0.1.13')
@@ -934,9 +1281,8 @@ if __name__ == '__main__':
     conf('fish/config.fish')
     conf('direnv.toml')
     conf('starship.toml')
-    conf('alacritty.toml')
+    conf('Xresources')
     conf('neovide.toml', 'neovide/config.toml')
-    conf('runst/runst.toml')
     conf('podman-storage.conf', 'containers/storage.conf')
     if sys == 'linux':
         conf('fish/linux.fish', 'fish/conf.d/linux.fish')

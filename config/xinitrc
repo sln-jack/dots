@@ -1,5 +1,7 @@
 #!/bin/sh
 
+[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
+
 while xsetroot -name "$(date '+%a %-m/%-d %H:%M %Z') | $(TZ=UTC date '+%H:%M %Z')"; do
 	sleep 1
 done &
