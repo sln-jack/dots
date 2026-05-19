@@ -113,7 +113,7 @@ function pk
 end
 
 function utc
-    date +"%Y%m%d-%H:%M:%S.%6N"
+    TZ=UTC date +"%Y%m%d-%H:%M:%S.%6N"
 end
 
 function fish_user_key_bindings
