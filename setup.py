@@ -934,6 +934,14 @@ if __name__ == '__main__':
             link = dst/item.name
             if not link.exists():
                 link.symlink_to(os.path.relpath(item, dst))
+
+    # Gated on base_prefix so foreign Pythons inheriting PYTHONPATH don't graft.
+    (PREFIX/'lib'/'python'/'sitecustomize.py').write_text(
+        'import os, sys, site\n'
+        'here = os.path.dirname(__file__)\n'
+        'if os.path.realpath(sys.base_prefix) == os.path.realpath(f"{here}/../../pkgs/python"):\n'
+        '    site.addsitedir(f"{here}/site-packages")\n'
+    )
     # Config
     def conf(src_name, dst_name=None):
         target = ROOT/'config'/src_name
