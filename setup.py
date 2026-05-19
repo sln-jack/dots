@@ -120,9 +120,14 @@ def build_cargo(d: Path, v: str, crate: str):
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
     sh(f'{cargo} install {crate}@{v} --locked --root {d}')
 
+
 def build_pip(d: Path, v: str, package: str):
     pip = PKGS/'python/bin/pip3'
     sh(f'{pip} install {package}=={v} --prefix={d}')
+
+def build_npm(d: Path, v: str, package: str):
+    node = PKGS/'node'
+    sh(f'PATH="{node}/bin:$PATH" npm install -g --prefix={d} {package}@{v}')
 
 #------ Toolchains -------------------------------------------------------------------------------------------
 
@@ -290,7 +295,7 @@ def codex(d: Path, v: str):
     install(WORK/f'codex-{tag}', d)
     sh(f'mv {d}/bin/codex-{tag} {d}/bin/codex')
 
-# Get latest version with `curl -LO https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/stable`
+# Get latest version with `curl -L https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest` or stable
 # See https://claude.ai/install.sh 
 @pkg()
 def claude(d: Path, v: str):
@@ -326,6 +331,20 @@ def postgres(d: Path, v: str):
     sh(f'./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
     for t in ['src/interfaces/libpq', 'src/bin/pg_dump', 'src/bin/psql']:
         sh(f'make -j{cpus} && make install', cwd=src/t)
+
+@pkg(deps={'python', 'node'})
+def basedpyright(d: Path, v: str):
+    build_pip(d, v, 'basedpyright')
+
+@pkg(deps={'node'})
+def bash_language_server(d: Path, v: str):
+    build_npm(d, v, 'bash-language-server')
+
+@pkg()
+def pixi(d: Path, v: str):
+    tag = {('linux','x86_64'):'x86_64-unknown-linux-musl', ('darwin','arm64'):'aarch64-apple-darwin'}[(sys, arch)]
+    extract(f'https://github.com/prefix-dev/pixi/releases/download/v{v}/pixi-{tag}.tar.gz', WORK)
+    install(WORK/'pixi', d)
 
 @pkg()
 def just(d: Path, v: str):
@@ -392,6 +411,12 @@ def gh(d: Path, v: str):
     ext = 'zip' if sys == 'darwin' else 'tar.gz'
     extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.{ext}', WORK)
     sh(f'mv {WORK}/gh_{v}_{tag}/* {d}/')
+
+@pkg()
+def shellcheck(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux.x86_64', ('darwin','arm64'):'darwin.aarch64'}[(sys, arch)]
+    extract(f'https://github.com/koalaman/shellcheck/releases/download/v{v}/shellcheck-v{v}.{tag}.tar.xz', WORK)
+    install(WORK/f'shellcheck-v{v}/shellcheck', d)
 
 @pkg(deps={'rust'})
 def dua(d: Path, v: str):
@@ -788,6 +813,7 @@ if __name__ == '__main__':
     zoxide('0.9.8')
     direnv('2.37.1')
     # Tools
+    pixi('0.66.0')
     just('1.46.0')
     fzf('0.68.0')
     ripgrep('15.1.0')
@@ -797,6 +823,7 @@ if __name__ == '__main__':
     dust('1.2.4')
     dua('2.32.2')
     gh('2.87.3')
+    shellcheck('0.11.0')
 
     # Coding
     nvim('0.11.4')
@@ -804,14 +831,17 @@ if __name__ == '__main__':
     lua_ls('3.15.0')
     # Python
     uv('0.11.3')
+    basedpyright('1.39.0')
+    # Bash
+    bash_language_server('5.6.0')
     # AI
     codex('0.98.0')
-    claude('2.1.59')
+    claude('2.1.111')
     # DB
     postgres('18.3')
     sqlcmd('1.9.0')
     duckdb('1.4.4')
-    influx('2.7.5')
+    influx('2.8.0')
 
     # Networking
     libpcap('1.10.5')
