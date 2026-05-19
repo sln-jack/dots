@@ -59,10 +59,10 @@ F.setup {
 
       -------- LSP ---------------------------------------------------------------------------------------------
 
-      [{'Rename', '<lang><lang>'}] = F.lsp.rename,
-      [{'Hover',  '<lang><tab>'}]  = F.when({lang = {'c', 'cpp'}}, F.cmd.with(':LspClangdSwitchSourceHeader')),
-      [{'Action', '<lang>a'}]      = F.lsp.action,
-      [{'Hints',  '<lang>h'}]      = F.lsp.toggle_hints,
+      [{'Rename', '<lang><lang>'}]  = F.lsp.rename,
+      [{'Action', '<lang>a'}]       = F.lsp.action,
+      [{'Hints',  '<lang>h'}]       = F.lsp.toggle_hints,
+      [{'Hover',  '<lang><space>'}] = F.lsp.hover,
 
       [{'Goto def',     '<lang>d'}] = F.lsp.definition,
       [{'Goto impl',    '<lang>D'}] = F.lsp.impls,
@@ -87,6 +87,10 @@ F.setup {
 
       [{'Permalink',      {'n','v'}, '<lang>l'}] = F.git.permalink,
       [{'Permalink main', {'n','v'}, '<lang>L'}] = F.git.permalink.with({ branch = 'main' }),
+
+      -- C/C++
+
+      [{'.c / .h', '<lang><tab>'}]  = F.when({lang = {'c', 'cpp'}}, F.cmd.with(':LspClangdSwitchSourceHeader')),
 
       -------- DAP ---------------------------------------------------------------------------------------------
 

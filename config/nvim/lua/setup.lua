@@ -168,6 +168,8 @@ local plugins = {
 
       vim.lsp.enable('rust_analyzer')
       vim.lsp.enable('clangd')
+      vim.lsp.enable('basedpyright')
+      vim.lsp.enable('bashls')
 
       vim.lsp.config('lua_ls', {
         settings = {
