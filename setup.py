@@ -123,7 +123,7 @@ def build_cargo(d: Path, v: str, crate: str):
 
 def build_pip(d: Path, v: str, package: str):
     pip = PKGS/'python/bin/pip3'
-    sh(f'{pip} install {package}=={v} --prefix={d}')
+    sh(f'{pip} install {package}=={v} --prefix={d} --ignore-installed')
 
 def build_npm(d: Path, v: str, package: str):
     node = PKGS/'node'
@@ -339,6 +339,10 @@ def basedpyright(d: Path, v: str):
 @pkg(deps={'node'})
 def bash_language_server(d: Path, v: str):
     build_npm(d, v, 'bash-language-server')
+
+@pkg(deps={'python'})
+def ykman(d: Path, v: str):
+    build_pip(d, v, 'yubikey-manager')
 
 @pkg()
 def pixi(d: Path, v: str):
@@ -824,6 +828,7 @@ if __name__ == '__main__':
     dua('2.32.2')
     gh('2.87.3')
     shellcheck('0.11.0')
+    ykman('5.9.1')
 
     # Coding
     nvim('0.11.4')
