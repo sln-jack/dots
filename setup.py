@@ -862,7 +862,7 @@ if __name__ == '__main__':
     if kind == 'desktop':
         alacritty('0.16.1')
         neovide('0.15.2')
-        zen('1.17.12b')
+        zen('1.19.13b')
 
         # X11 Windowing
         dwm('6.6')
