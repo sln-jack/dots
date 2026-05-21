@@ -46,6 +46,9 @@
     # Global personal gitignore
     excludesfile = ~/.jack/prefix/config/git/ignore
 
+    # -F: skip pager if output fits one screen; -X: keep output in scrollback after quitting
+    pager = less -F -X
+
 [rebase]
     # Automatically handle --fixup commits in `git rebase -i`
     autoSquash = true
@@ -63,6 +66,9 @@
 [merge]
     # Also show what the file looked like before either side changed anything
     conflictstyle = zdiff3
+
+    # Refuse non-fast-forward merges; require explicit --no-ff for merge commits
+    ff = only
 
 [advice]
     # Remove help spam
