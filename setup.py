@@ -841,7 +841,7 @@ if __name__ == '__main__':
     bash_language_server('5.6.0')
     # AI
     codex('0.98.0')
-    claude('2.1.111')
+    claude('2.1.186')
     # DB
     postgres('18.3')
     sqlcmd('1.9.0')
