@@ -527,10 +527,51 @@ M.setup_vim = function()
   end
 end
 
+-- CUSTOM LANGUAGES ----------------------------------------------------------------------------------------------
+--
+-- Auto-discovers tree-sitter grammars from ~/.jack/config/nvim/treesitter/.
+-- Drop a pair `<lang>.so` + `<lang>.scm` in there and restart nvim.
+--
+-- Naming convention: `zen-<name>.so` registers as filetype `zen-<name>` and
+-- matches `*.<name>.zen` filenames. The .so internally exports
+-- `tree_sitter_zen_<name>` (underscore form, since hyphens aren't valid C
+-- identifiers); we tell nvim about that via `symbol_name`.
+
+M.setup_languages = function()
+  local dir = vim.fn.stdpath('config') .. '/treesitter'
+  if vim.fn.isdirectory(dir) == 0 then return end
+
+  -- File layout (produced by gramTS): <lang>.<ext>.so + <lang>.<ext>.scm
+  -- e.g. zen-gram.zg.so / zen-gram.zg.scm  (matches *.zg files)
+  --      zen-c.zc.so    / zen-c.zc.scm     (matches *.zc files)
+  for _, so_path in ipairs(vim.fn.glob(dir .. '/*.so', false, true)) do
+    local stem = vim.fn.fnamemodify(so_path, ':t:r')           -- 'zen-gram.zg'
+    local lang, ext = stem:match('^(.+)%.([^%.]+)$')           -- 'zen-gram', 'zg'
+    if lang and ext then
+      local symbol = lang:gsub('-', '_')                       -- 'zen_gram'
+      vim.treesitter.language.add(lang, { path = so_path, symbol_name = symbol })
+
+      local scm = io.open(dir .. '/' .. stem .. '.scm')
+      if scm then
+        vim.treesitter.query.set(lang, 'highlights', scm:read('*a'))
+        scm:close()
+      end
+
+      -- Filetype == lang name (e.g. 'zen-gram'); pattern matches *.<ext>.
+      vim.filetype.add({ pattern = { ['.+%.' .. ext] = lang } })
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = lang,
+        callback = function(args) vim.treesitter.start(args.buf, lang) end,
+      })
+    end
+  end
+end
+
 -- MAIN SETUP ----------------------------------------------------------------------------------------------------
 
 M.setup = function()
   M.setup_vim()
+  M.setup_languages()
   require('lazy').setup(plugins)
 end
 

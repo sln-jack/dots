@@ -1,6 +1,6 @@
 [user]
     name = "Jack Foltz"
-    email = "jack@selinicapital.com"
+    email = "jack@foltz.io"
 
 [init]
     defaultBranch = main
@@ -80,3 +80,5 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+[color]
+	ui = auto

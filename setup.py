@@ -116,10 +116,12 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{env} {path} {meson} compile -C build', cwd=src)
     sh(f'{env} {path} {meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str, env: str = ''):
+def build_cargo(d: Path, v: str, crate: str, features: list = [], locked: bool = True, env: str = ''):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
-    sh(f'{env} {cargo} install {crate}@{v} --locked --root {d}')
+    features = f'--no-default-features --features {",".join(features)}' if features else ''
+    locked = '--locked' if locked else ''
+    sh(f'{env} {cargo} install {crate}@{v} {locked} {features} --root {d}')
 
 def build_pip(d: Path, v: str, package: str):
     pip = PKGS/'python/bin/pip3'
@@ -352,6 +354,10 @@ def zig(d: Path, v: str):
 def cargo_zigbuild(d: Path, v: str):
     build_cargo(d, v, 'cargo-zigbuild')
 
+@pkg(deps={'rust'})
+def cargo_watch(d: Path, v: str):
+    build_cargo(d, v, 'cargo-watch')
+
 @pkg()
 def duckdb(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'osx-universal'}[(sys, arch)]
@@ -363,6 +369,12 @@ def lua_ls(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
     extract(f'https://github.com/LuaLS/lua-language-server/releases/download/{v}/lua-language-server-{v}-{tag}.tar.gz', d/'lua_ls')
     sh(f'mkdir {d}/bin && ln -sf ../lua_ls/bin/lua-language-server {d}/bin/')
+
+@pkg()
+def tree_sitter(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
+    extract(f'https://github.com/tree-sitter/tree-sitter/releases/download/v{v}/tree-sitter-cli-{tag}.zip', WORK/'tree-sitter')
+    install(WORK/'tree-sitter/tree-sitter', d)
 
 @pkg(deps={'bison', 'flex'})
 def postgres(d: Path, v: str):
@@ -440,9 +452,29 @@ def gh(d: Path, v: str):
     extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.{ext}', WORK)
     sh(f'mv {WORK}/gh_{v}_{tag}/* {d}/')
 
+@pkg()
+def sldl(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'osx-arm64'}[(sys, arch)]
+    extract(f'https://github.com/fiso64/sldl/releases/download/v{v}/sldl_{tag}.zip', WORK/'sldl')
+    install(WORK/'sldl/sldl', d)
+
 @pkg(deps={'rust'})
 def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
+
+@pkg(deps={'rust'})
+def tokei(d: Path, v: str):
+    build_cargo(d, v, 'tokei')
+
+@pkg(deps={'rust'})
+def sqlx_cli(d: Path, v: str):
+    # rustls (not native-tls) avoids openssl; sqlite is bundled and compiled from source.
+    build_cargo(d, v, 'sqlx-cli', features=['rustls', 'postgres', 'sqlite'])
+
+@pkg(deps={'rust'})
+def mailtutan(d: Path, v: str):
+    # unlocked: its Cargo.lock pins proc-macro2 too old to compile on current nightly.
+    build_cargo(d, v, 'mailtutan', locked=False)
 
 @pkg()
 def libxml2(d: Path, v: str):
@@ -528,312 +560,43 @@ def snitch(d: Path, v: str):
     extract(f'https://github.com/karol-broda/snitch/releases/download/v{v}/snitch_{v}_{tag}.tar.gz', WORK)
     install(WORK/'snitch', d)
 
-@pkg(deps={'pkgconf'})
-def xorgproto(d: Path, v: str):
-    extract(f'https://www.x.org/archive/individual/proto/xorgproto-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'xorgproto-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"')
+@pkg(deps={'clang'})
+def passt(d: Path, v: str):
+    clang = PKGS/'clang/bin/clang'
+    extract(f'https://passt.top/passt/snapshot/passt-{v}.tar.xz', WORK)
+    sh(f'make install -j{cpus} CC={clang} prefix={d}', cwd=WORK/f'passt-{v}')
 
-@pkg(deps={'pkgconf'})
-def xtrans(d: Path, v: str):
-    extract(f'https://www.x.org/archive/individual/lib/xtrans-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'xtrans-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"')
+@pkg(deps={'clang'})
+def libcap(d: Path, v: str):
+    clang = PKGS/'clang/bin/clang'
+    extract(f'https://www.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-{v}.tar.xz', WORK)
+    src = WORK/f'libcap-{v}'
+    sh(f'make install -j{cpus} CC={clang} GOLANG=no PAM_CAP=no lib=lib prefix={d}', cwd=src)
 
-@pkg(deps={'xorgproto'})
-def libxau(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    extract(f'https://www.x.org/archive/individual/lib/libXau-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXau-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{xorgproto}"')
+@pkg(deps={'meson', 'ninja', 'libcap'})
+def bwrap(d: Path, v: str):
+    libcap = PKGS/'libcap/lib/pkgconfig'
+    extract(f'https://github.com/containers/bubblewrap/releases/download/v{v}/bubblewrap-{v}.tar.xz', WORK)
+    build_meson(WORK/f'bubblewrap-{v}', d,
+        '-Dselinux=disabled', '-Dman=disabled', '-Dtests=false',
+        env=f'PKG_CONFIG_PATH="{libcap}"')
 
-@pkg(deps={'xorgproto'})
-def libxdmcp(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    extract(f'https://www.x.org/archive/individual/lib/libXdmcp-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXdmcp-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{xorgproto}"')
-
-@pkg(deps={'python', 'pkgconf'})
-def xcb_proto(d: Path, v: str):
-    python = PKGS/'python/bin/python3'
-    extract(f'https://xcb.freedesktop.org/dist/xcb-proto-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'xcb-proto-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PYTHON="{python}"')
-
-@pkg(deps={'libxau', 'libxdmcp', 'xcb_proto'})
-def libxcb(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    xcb_proto = PKGS/'xcb_proto/share/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{xcb_proto}'
-    python = PKGS/'python/bin/python3'
-    extract(f'https://xcb.freedesktop.org/dist/libxcb-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libxcb-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"',
-        f'PYTHON="{python}"')
-
-@pkg(deps={'xtrans', 'libxcb'})
-def libx11(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    xcb_proto = PKGS/'xcb_proto/share/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{xcb_proto}:{libxcb}'
-    extract(f'https://www.x.org/archive/individual/lib/libX11-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libX11-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libx11'})
-def libxext(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
-    extract(f'https://www.x.org/archive/individual/lib/libXext-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXext-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libxext'})
-def libice(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}'
-    extract(f'https://www.x.org/archive/individual/lib/libICE-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libICE-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libice'})
-def libsm(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    libice = PKGS/'libice/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}'
-    extract(f'https://www.x.org/archive/individual/lib/libSM-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libSM-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libsm'})
-def libxt(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    libice = PKGS/'libice/lib/pkgconfig'
-    libsm = PKGS/'libsm/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}'
-    extract(f'https://www.x.org/archive/individual/lib/libXt-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXt-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libxt'})
-def libxmu(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    libice = PKGS/'libice/lib/pkgconfig'
-    libsm = PKGS/'libsm/lib/pkgconfig'
-    libxt = PKGS/'libxt/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}'
-    extract(f'https://www.x.org/archive/individual/lib/libXmu-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXmu-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libx11'})
-def libxpm(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
-    extract(f'https://www.x.org/archive/individual/lib/libXpm-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXpm-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libxmu', 'libxpm'})
-def libxaw(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    libice = PKGS/'libice/lib/pkgconfig'
-    libsm = PKGS/'libsm/lib/pkgconfig'
-    libxt = PKGS/'libxt/lib/pkgconfig'
-    libxmu = PKGS/'libxmu/lib/pkgconfig'
-    libxpm = PKGS/'libxpm/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}:{libxmu}:{libxpm}'
-    extract(f'https://www.x.org/archive/individual/lib/libXaw-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXaw-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libx11'})
-def libxrender(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
-    extract(f'https://www.x.org/archive/individual/lib/libXrender-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXrender-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libxrender', 'freetype', 'fontconfig'})
-def libxft(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxrender = PKGS/'libxrender/lib/pkgconfig'
-    freetype = PKGS/'freetype/lib/pkgconfig'
-    fontconfig = PKGS/'fontconfig/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxrender}:{freetype}:{fontconfig}'
-    extract(f'https://www.x.org/archive/individual/lib/libXft-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXft-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libxext'})
-def libxinerama(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}'
-    extract(f'https://www.x.org/archive/individual/lib/libXinerama-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libXinerama-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg()
-def gperf(d: Path, v: str):
-    extract(f'https://ftp.gnu.org/gnu/gperf/gperf-{v}.tar.gz', WORK)
-    build_autotools(WORK/f'gperf-{v}', d)
-
-@pkg()
-def freetype(d: Path, v: str):
-    extract(f'https://download.savannah.gnu.org/releases/freetype/freetype-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'freetype-{v}', d)
-
-@pkg(deps={'freetype', 'pkgconf', 'gperf'})
-def fontconfig(d: Path, v: str):
-    gperf = PKGS/'gperf'
-    freetype = PKGS/'freetype/lib/pkgconfig'
-    extract(f'https://www.freedesktop.org/software/fontconfig/release/fontconfig-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'fontconfig-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{freetype}"',
-        '--disable-docs',
-        env=f'PATH="{gperf}/bin:$PATH"')
-
-@pkg(deps={'libxaw', 'libxft', 'libxinerama', 'freetype'})
-def xterm(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    libice = PKGS/'libice/lib/pkgconfig'
-    libsm = PKGS/'libsm/lib/pkgconfig'
-    libxt = PKGS/'libxt/lib/pkgconfig'
-    libxmu = PKGS/'libxmu/lib/pkgconfig'
-    libxpm = PKGS/'libxpm/lib/pkgconfig'
-    libxaw = PKGS/'libxaw/lib/pkgconfig'
-    libxrender = PKGS/'libxrender/lib/pkgconfig'
-    libxft = PKGS/'libxft/lib/pkgconfig'
-    libxinerama = PKGS/'libxinerama/lib/pkgconfig'
-    freetype = PKGS/'freetype/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}:{libxmu}:{libxpm}:{libxaw}:{libxrender}:{libxft}:{libxinerama}:{freetype}'
-    extract(f'https://invisible-island.net/archives/xterm/xterm-{v}.tgz', WORK)
-    build_autotools(WORK/f'xterm-{v}', d,
-        '--enable-256-color', '--enable-wide-chars', '--enable-freetype',
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libx11'})
-def xinit(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{libxau}:{libxdmcp}:{libxcb}:{libx11}'
-    extract(f'https://www.x.org/archive/individual/app/xinit-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'xinit-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'libxmu'})
-def xauth(d: Path, v: str):
-    xorgproto = PKGS/'xorgproto/share/pkgconfig'
-    xtrans = PKGS/'xtrans/share/pkgconfig'
-    libxau = PKGS/'libxau/lib/pkgconfig'
-    libxdmcp = PKGS/'libxdmcp/lib/pkgconfig'
-    libxcb = PKGS/'libxcb/lib/pkgconfig'
-    libx11 = PKGS/'libx11/lib/pkgconfig'
-    libxext = PKGS/'libxext/lib/pkgconfig'
-    libice = PKGS/'libice/lib/pkgconfig'
-    libsm = PKGS/'libsm/lib/pkgconfig'
-    libxt = PKGS/'libxt/lib/pkgconfig'
-    libxmu = PKGS/'libxmu/lib/pkgconfig'
-    pkg_config_path = f'{xorgproto}:{xtrans}:{libxau}:{libxdmcp}:{libxcb}:{libx11}:{libxext}:{libice}:{libsm}:{libxt}:{libxmu}'
-    extract(f'https://www.x.org/archive/individual/app/xauth-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'xauth-{v}', d,
-        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
-        f'PKG_CONFIG_PATH="{pkg_config_path}"')
-
-@pkg(deps={'rust', 'freetype', 'fontconfig'})
+@pkg(deps={'rust'})
 def neovide(d: Path, v: str):
-    freetype_lib = PKGS/'freetype/lib'
-    fontconfig_lib = PKGS/'fontconfig/lib'
-    freetype = PKGS/'freetype/lib/pkgconfig'
-    fontconfig = PKGS/'fontconfig/lib/pkgconfig'
-    env = f'LIBRARY_PATH="{freetype_lib}:{fontconfig_lib}" PKG_CONFIG_PATH="{freetype}:{fontconfig}"'
-    build_cargo(d, v, 'neovide', env=env)
+    # WARNING: impure — takes host freetype/fontconfig.
+    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
+    build_cargo(d, v, 'neovide', env=f'PKG_CONFIG_PATH="{system}"')
+
+@pkg()
+def noto_emoji(d: Path, v: str):
+    sh(f'mkdir -p {d}/share/fonts')
+    sh(f'curl -L https://github.com/googlefonts/noto-emoji/raw/refs/tags/v{v}/fonts/NotoColorEmoji.ttf -o {d}/share/fonts/NotoColorEmoji.ttf')
+
+@pkg(deps={'rust'})
+def alacritty(d: Path, v: str):
+    # WARNING: impure — takes host X11/freetype/fontconfig/libpng/zlib.
+    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
+    build_cargo(d, v, 'alacritty', env=f'PKG_CONFIG_PATH="{system}"')
 
 @pkg()
 def zen(d: Path, v: str):
@@ -841,258 +604,27 @@ def zen(d: Path, v: str):
     sh(f'mv {WORK}/zen {d}/')
     sh(f'mkdir -p {d}/bin && ln -sf ../zen/zen {d}/bin/zen')
 
-@pkg(deps={'libxft', 'libxinerama', 'freetype', 'fontconfig'})
+@pkg()
 def dwm(d: Path, v: str):
-    incs = ' '.join(f'-I{PKGS}/{n}/include' for n in
-        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'fontconfig')) + f' -I{PKGS}/freetype/include/freetype2'
-    libs = ' '.join(f'-L{PKGS}/{n}/lib' for n in
-        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'freetype', 'fontconfig')) + ' -lX11 -lXinerama -lfontconfig -lXft'
-    extract(f'https://github.com/sln-jack/dwm/archive/refs/heads/master.tar.gz', WORK)
+    # WARNING: impure — links against host X11/Xft/Xinerama/freetype/fontconfig.
+    incs = '-I/usr/include/freetype2'
+    libs = '-lX11 -lXinerama -lXft -lfontconfig'
+    # extract(f'https://github.com/sln-jack/dwm/archive/refs/heads/master.tar.gz', WORK)
     sh(f'rm -f {WORK}/dwm-master/config.h && make -j{cpus} INCS="{incs}" LIBS="{libs}" && DESTDIR={d} make install', cwd=WORK/'dwm-master')
 
-@pkg(deps={'libxft', 'libxinerama', 'freetype', 'fontconfig'})
+@pkg()
 def dmenu(d: Path, v: str):
-    incs = ' '.join(f'-I{PKGS}/{n}/include' for n in
-        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'fontconfig')) + f' -I{PKGS}/freetype/include/freetype2'
-    libs = ' '.join(f'-L{PKGS}/{n}/lib' for n in
-        ('libx11', 'libxft', 'libxrender', 'libxinerama', 'freetype', 'fontconfig')) + ' -lX11 -lXinerama -lfontconfig -lXft'
+    # WARNING: impure — links against host X11/Xft/Xinerama/freetype/fontconfig.
+    incs = '-I/usr/include/freetype2'
+    libs = '-lX11 -lXinerama -lXft -lfontconfig'
     extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
     sh(f'rm -f {WORK}/dmenu-master/config.h && make -j{cpus} INCS="{incs}" LIBS="{libs}" && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
-
-@pkg(deps={'automake', 'pkgconf'})
-def libevdev(d: Path, v: str):
-    pkgconf = PKGS/'pkgconf'
-    extract(f'https://www.freedesktop.org/software/libevdev/libevdev-{v}.tar.xz', WORK)
-    build_automake(
-        WORK/f'libevdev-{v}', d,
-        '--enable-static', '--disable-shared',
-        env=f'ACLOCAL_PATH="{pkgconf}/share/aclocal"'
-    )
-
-@pkg(deps={'automake', 'pkgconf'})
-def libmtdev(d: Path, v: str):
-    extract(f'https://bitmath.se/org/code/mtdev/mtdev-{v}.tar.gz', WORK)
-    build_automake(
-        WORK/f'mtdev-{v}', d,
-        '--enable-static', '--disable-shared'
-    )
-
-@pkg(deps={'meson', 'ninja', 'libevdev', 'libmtdev'})
-def libinput(d: Path, v: str):
-    # WARNING: impure to take host libsystemd
-    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
-    libevdev = PKGS/'libevdev/lib/pkgconfig'
-    libmtdev = PKGS/'libmtdev/lib/pkgconfig'
-    extract(f'https://gitlab.freedesktop.org/libinput/libinput/-/archive/{v}/libinput-{v}.tar.gz', WORK)
-    build_meson(
-        WORK/f'libinput-{v}', d,
-        '-Ddocumentation=false',
-        '-Dtests=false',
-        '-Ddebug-gui=false',
-        '-Dlibwacom=false',
-        env=f'PKG_CONFIG_PATH="{libevdev}:{libmtdev}:{system}"'
-    )
-
-@pkg(deps={'clang'})
-def pugixml(d: Path, v: str):
-    extract(f'https://github.com/zeux/pugixml/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_cmake(
-        WORK/f'pugixml-{v}', d,
-        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
-    )
-
-@pkg(deps={'clang'})
-def libseat(d: Path, v: str):
-    # WARNING: impure to take host libsystemd
-    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
-    libinput = PKGS/f'libinput/lib64/pkgconfig'
-
-    extract(f'https://git.sr.ht/~kennylevinsen/seatd/archive/{v}.tar.gz', WORK)
-    build_meson(
-        WORK/f'seatd-{v}', d,
-        '-Dlibseat-seatd=disabled',
-        '-Dserver=disabled',
-        env=f'PKG_CONFIG_PATH="{system}:{libinput}"',
-    )
-
-@pkg(deps={'clang', 'pugixml'})
-def hyprwayland_scanner(d: Path, v: str):
-    pugixml = PKGS/'pugixml'
-    vars = f'PKG_CONFIG_PATH="{pugixml}/lib64/pkgconfig"'
-
-    extract(f'https://github.com/hyprwm/hyprwayland-scanner/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_cmake(
-        WORK/f'hyprwayland-scanner-{v}', d,
-        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
-        env=vars)
-
 
 @pkg()
 def libffi(d: Path, v: str):
     extract(f'https://github.com/libffi/libffi/releases/download/v{v}/libffi-{v}.tar.gz', WORK)
     build_autotools(WORK/f'libffi-{v}', d)
 
-#@pkg(deps={'cmake'})
-#def libexpat(d: Path, v: str):
-#    extract(f'https://github.com/libexpat/libexpat/releases/download/R_{v.replace('.', '_')}/expat-{v}.tar.gz', WORK)
-#    build_cmake(WORK/f'expat-{v}', d)
-
-@pkg(deps={'meson', 'libffi', 'libexpat', 'libxml2'})
-def wayland(d: Path, v: str):
-    libffi = PKGS/'libffi/lib/pkgconfig'
-    libexpat = PKGS/'libexpat/lib64/pkgconfig'
-
-    extract(f'https://gitlab.freedesktop.org/wayland/wayland/-/archive/{v}/wayland-{v}.tar.gz', WORK)
-    build_meson(
-        WORK/f'wayland-{v}', d,
-        '-Dscanner=true',
-        '-Dtests=false',
-        '-Ddocumentation=false',
-        '-Ddtd_validation=false',
-        env=f'PKG_CONFIG_PATH="{libffi}:{libexpat}"',
-    )
-
-@pkg(deps={'meson'})
-def wayland_protocols(d: Path, v: str):
-    wayland = PKGS/'wayland/lib64/pkgconfig'
-
-    extract(f'https://gitlab.freedesktop.org/wayland/wayland-protocols/-/archive/{v}/wayland-protocols-{v}.tar.gz', WORK)
-    build_meson(
-        WORK/f'wayland-protocols-{v}', d,
-        '-Dtests=false',
-        env=f'PKG_CONFIG_PATH="{wayland}"',
-    )
-
-@pkg(deps={'clang', 'pixman'})
-def hyprutils(d: Path, v: str):
-    pixman = PKGS/'pixman/lib64/pkgconfig'
-
-    extract(f'https://github.com/hyprwm/hyprutils/archive/refs/tags/v0.10.4.tar.gz', WORK)
-    build_cmake(
-        WORK/f'hyprutils-{v}', d,
-        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
-        env=f'PKG_CONFIG_PATH="{pixman}"',
-    )
-
-@pkg(deps={'meson'})
-def pixman(d: Path, v: str):
-    extract(f'https://cairographics.org/releases/pixman-{v}.tar.gz', WORK)
-    build_meson(WORK/f'pixman-{v}', d)
-
-@pkg(deps={'meson'})
-def libdisplay_info(d: Path, v: str):
-    extract(f'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/archive/{v}/libdisplay-info-{v}.tar.gz', WORK)
-    build_meson(WORK/f'libdisplay-info-{v}', d)
-
-@pkg()
-def hwdata(d: Path, v: str):
-    extract(f'https://github.com/vcrhonek/hwdata/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_autotools(WORK/f'hwdata-{v}', d)
-
-@pkg(deps={'hyprutils'})
-def hyprlang(d: Path, v: str):
-    hyprutils = PKGS/'hyprutils/lib64/pkgconfig'
-
-    extract(f'https://github.com/hyprwm/hyprlang/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_cmake(
-        WORK/f'hyprlang-{v}', d,
-        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
-        env=f'PKG_CONFIG_PATH="{hyprutils}"',
-    )
-
-@pkg()
-def libzip(d: Path, v: str):
-    extract(f'https://github.com/nih-at/libzip/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_cmake(
-        WORK/f'libzip-{v}', d,
-        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
-    )
-
-#@pkg(deps={'m4'})
-#def pcre2(d: Path, v: str):
-#    m4 = PKGS/'m4'
-#    extract(f'https://github.com/PCRE2Project/pcre2/archive/refs/tags/pcre2-{v}.tar.gz', WORK)
-#    build_automake(WORK/f'pcre2-pcre2-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
-
-#@pkg(deps={'pcre2', 'libffi', 'pkgconf'})
-#def glib(d: Path, v: str):
-#    extract(f'https://gitlab.gnome.org/GNOME/glib/-/archive/{v}/glib-{v}.tar.gz', WORK)
-#    src = WORK/f'glib-{v}'
-#
-#    pkgconf = PKGS/'pkgconf'
-#    pcre2 = PKGS/'pcre2/lib/pkgconfig'
-#    libffi = PKGS/'libffi/lib/pkgconfig'
-#    pkg_config_path = f'{pcre2}:{libffi}'
-#    sh(f'rm -rf {src}/subprojects/gvdb')
-#    # TODO: pin a sha, dont use main
-#    sh(f'git clone https://gitlab.gnome.org/GNOME/gvdb --depth 1 {src}/subprojects/gvdb')
-#
-#    build_meson(
-#        src, d,
-#        '-Dwrap_mode=nodownload',
-#        env=f'PKG_CONFIG="{pkgconf}/bin/pkgconf" PKG_CONFIG_PATH="{pkg_config_path}"',
-#    )
-
-@pkg(deps={'glib'})
-def cairo(d: Path, v: str):
-    extract(f'https://cairographics.org/releases/cairo-{v}.tar.xz', WORK)
-    build_meson(
-        WORK/f'cairo-{v}', d,
-        '-Dwrap_mode=nodownload',
-    )
-
-@pkg(deps={'hyprlang', 'libzip', 'cairo'})
-def hyprcursor(d: Path, v: str):
-    hyprlang = PKGS/'hyprlang/lib64/pkgconfig'
-    libzip = PKGS/'libzip/lib64/pkgconfig'
-    cairo = PKGS/'cairo/lib64/pkgconfig'
-
-    extract(f'https://github.com/hyprwm/hyprcursor/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_cmake(
-        WORK/f'hyprcursor-{v}', d,
-        '-DCMAKE_CXX_FLAGS="-stdlib=libc++"',
-        env=f'PKG_CONFIG_PATH="{hyprlang}:{libzip}"',
-    )
-
-@pkg(deps={'meson', 'hyprwayland_scanner', 'libinput', 'libseat', 'wayland', 'wayland_protocols', 'hyprutils'})
-def aquamarine(d: Path, v: str):
-    clang = PKGS/'clang/lib/x86_64-unknown-linux-gnu'
-    hyprwayland_scanner = PKGS/'hyprwayland_scanner'
-    libinput = PKGS/'libinput/lib64/pkgconfig'
-    libseat = PKGS/'libseat/lib64/pkgconfig'
-    wayland = PKGS/'wayland/lib64/pkgconfig'
-    wayland_protocols = PKGS/'wayland_protocols/share/pkgconfig'
-    hyprutils = PKGS/'hyprutils/lib64/pkgconfig'
-    pixman = PKGS/'pixman/lib64/pkgconfig'
-    libdisplay_info = PKGS/'libdisplay_info/lib64/pkgconfig'
-    hwdata = PKGS/'hwdata/share/pkgconfig'
-
-    extract(f'https://github.com/hyprwm/aquamarine/archive/refs/tags/v{v}.tar.gz', WORK)
-    build_cmake(
-        WORK/f'aquamarine-{v}', d,
-        f'-DCMAKE_PREFIX_PATH={hyprwayland_scanner}',
-        env=f'LD_LIBRARY_PATH="{clang}" PKG_CONFIG_PATH="{libseat}:{libinput}:{wayland}:{wayland_protocols}:{hyprutils}:{pixman}:{libdisplay_info}:{hwdata}"',
-    )
-
-@pkg(deps={'cmake', 'wayland', 'wayland_protocols', 'udis86', 'aquamarine', 'hyprlang', 'hyprcursor'})
-def hyprland(d: Path, v: str):
-    src = WORK/f'Hyprland-{v}'
-
-    wayland = PKGS/'wayland/share/pkgconfig'
-    wayland_protocols = PKGS/'wayland_protocols/share/pkgconfig'
-    aquamarine = PKGS/'aquamarine/lib64/pkgconfig'
-    hyprlang = PKGS/'hyprlang/lib64/pkgconfig'
-
-    # udis86 submodule
-    extract(f'https://github.com/canihavesomecoffee/udis86/archive/master.tar.gz', WORK)
-    sh(f'rm -rf {src}/subprojects/udis86 && mv {WORK}/udis86-master {src}/subprojects/udis86')
-
-    build_cmake(
-        src, d,
-        env=f'PKG_CONFIG_PATH="{wayland}:{wayland_protocols}:{aquamarine}:{hyprlang}"',
-    )
-
-# --- run ----------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     print('\nAdding packages: base')
 
@@ -1116,6 +648,7 @@ if __name__ == '__main__':
     rust('nightly')
     zig('0.15.2')
     cargo_zigbuild('0.22.1')
+    cargo_watch('8.5.3')
     node('24.12.0')
     bun('1.3.9')
 
@@ -1141,18 +674,22 @@ if __name__ == '__main__':
     dust('1.2.4')
     dua('2.32.2')
     gh('2.87.3')
+    sldl('2.6.0')
+    tokei('14.0.0')
 
     # Coding
     nvim('0.11.4')
+    tree_sitter('0.26.8')
     # Lua
     lua_ls('3.15.0')
     # Python
     uv('0.9.18')
     # AI
-    codex('0.98.0')
-    claude('2.1.114')
+    codex('0.124.0')
+    claude('2.1.186')
     # DB
     if sys == 'linux': postgres('18.3')
+    sqlx_cli('0.9.0')
     sqlcmd('1.9.0')
     duckdb('1.4.4')
     influx('2.7.5')
@@ -1164,61 +701,22 @@ if __name__ == '__main__':
     gping('1.20.1')
     oha('1.12.1')
     snitch('0.2.2')
+    mailtutan('0.3.0')
+    if sys == 'linux':
+        libcap('2.78')
+        bwrap('0.11.2')
+        passt('2026_06_11.a9c61ff')
 
     # Gui
     if kind == 'desktop':
-        xorgproto('2025.1')
-        xtrans('1.6.0')
-        libxau('1.0.12')
-        libxdmcp('1.1.5')
-        xcb_proto('1.17.0')
-        libxcb('1.17.0')
-        libx11('1.8.13')
-        libxext('1.3.7')
-        libice('1.1.2')
-        libsm('1.2.6')
-        libxt('1.3.1')
-        libxmu('1.3.1')
-        libxpm('3.5.18')
-        libxaw('1.0.16')
-        gperf('3.3')
-        freetype('2.14.3')
-        fontconfig('2.16.0')
-        libxrender('0.9.12')
-        libxft('2.3.9')
-        libxinerama('1.1.6')
-        xterm('409')
-        xinit('1.4.4')
-        xauth('1.1.5')
+        alacritty('0.17.0')
+        noto_emoji('2.051')
         neovide('0.15.2')
         zen('1.17.12b')
 
         # X11 Windowing
         dwm('6.6')
         dmenu('5.4')
-
-    # Wayland Windowing
-    # libevdev('1.12.1')
-    # libmtdev('1.1.7')
-    # libinput('1.30.0')
-    # libseat('0.9.1')
-    # libffi('3.5.2')
-    # libexpat('2.7.3')
-    # wayland('1.24.0')
-    # wayland_protocols('1.46')
-    # pixman('0.46.4')
-    # hwdata('0.402')
-    # libdisplay_info('0.3.0')
-    # hyprutils('0.10.4')
-    # pugixml('1.15')
-    # hyprwayland_scanner('0.4.5')
-    # aquamarine('0.10.0')
-    # hyprlang('0.6.7')
-    # libzip('1.11.4')
-    # glib('2.86.2')
-    # cairo('1.18.4')
-    # hyprcursor('0.1.13')
-    # hyprland('0.52.2')
 
     # Load extensions
     ext = ROOT/'setup.d'
@@ -1281,7 +779,9 @@ if __name__ == '__main__':
     conf('fish/config.fish')
     conf('direnv.toml')
     conf('starship.toml')
-    conf('Xresources')
+    conf('xinitrc')
+    conf('alacritty.toml', 'alacritty/alacritty.toml')
+    conf('sldl.conf', 'sldl/sldl.conf')
     conf('neovide.toml', 'neovide/config.toml')
     conf('podman-storage.conf', 'containers/storage.conf')
     if sys == 'linux':
@@ -1292,6 +792,12 @@ if __name__ == '__main__':
         conf('aerospace.toml', 'aerospace/aerospace.toml')
     sh(f'mkdir -p {PREFIX}/config/codex')
     sh(f'ln -s ~/.config/* {PREFIX}/config/ 2>/dev/null || true')
+
+    # Fonts: link font files from files/ into $XDG_DATA_HOME/fonts.
+    sh(f'rm -rf {PREFIX}/share/fonts && mkdir -p {PREFIX}/share/fonts')
+    for ext in ('ttf', 'otf', 'ttc'):
+        for font in (ROOT/'files').glob(f'*.{ext}'):
+            sh(f'ln -sf {font} {PREFIX}/share/fonts/{font.name}')
 
     print('Cleaning up...')
     # sh(f'rm -rf {WORK}/*')

@@ -1,9 +1,9 @@
 #!/bin/sh
 
-[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
+"$DOTS/files/xinput.sh"
 
-while xsetroot -name "$(date '+%a %-m/%-d %H:%M %Z') | $(TZ=UTC date '+%H:%M %Z')"; do
-	sleep 1
-done &
+# Give the on-demand xdg-desktop-portal backend a display, else file pickers fail.
+export XDG_CURRENT_DESKTOP=GTK
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP
 
 exec dwm
