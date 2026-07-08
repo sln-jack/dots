@@ -168,7 +168,20 @@ local plugins = {
 
       vim.lsp.enable('rust_analyzer')
       vim.lsp.enable('clangd')
+
+      -- basedpyright only auto-detects .venv, add support for .pixi
+      vim.lsp.config('basedpyright', {
+        before_init = function(_, config)
+          local root = config.root_dir
+          if not root then return end
+          local pixi_python = root .. '/.pixi/envs/default/bin/python'
+          if vim.uv.fs_stat(pixi_python) then
+            config.settings.python = { pythonPath = pixi_python }
+          end
+        end,
+      })
       vim.lsp.enable('basedpyright')
+
       vim.lsp.enable('bashls')
 
       vim.lsp.config('lua_ls', {
