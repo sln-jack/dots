@@ -204,7 +204,7 @@ def clang(d: Path, v: str):
         WORK/f'llvm-project-{v}.src/llvm', d,
         '-DLLVM_ENABLE_PROJECTS="lld;clang;clang-tools-extra"',
         #'-DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"',
-        '-DLLVM_TARGETS_TO_BUILD="X86;AArch64"',
+        '-DLLVM_TARGETS_TO_BUILD="X86;AArch64;AMDGPU"',
         '-DLLVM_ENABLE_LLD=OFF',
         '-DLLVM_INCLUDE_EXAMPLES=OFF',
         '-DLLVM_INCLUDE_TESTS=OFF',
