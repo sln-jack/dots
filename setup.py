@@ -440,6 +440,13 @@ def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
 
 @pkg()
+def zstd(d: Path, v: str):
+    extract(f'https://github.com/facebook/zstd/releases/download/v{v}/zstd-{v}.tar.gz', WORK)
+    make = f'make -j{cpus} PREFIX={d}'
+    sh(make, cwd=WORK/f'zstd-{v}')
+    sh(f'{make} install', cwd=WORK/f'zstd-{v}')
+
+@pkg()
 def libxml2(d: Path, v: str):
     vv = '.'.join(v.split('.')[:2]) # 2.15.1 -> 2.15
     extract(f'https://download.gnome.org/sources/libxml2/{vv}/libxml2-{v}.tar.xz', WORK)
@@ -840,6 +847,7 @@ if __name__ == '__main__':
     sd('1.0.0')
     dust('1.2.4')
     dua('2.32.2')
+    zstd('1.5.7')
     gh('2.87.3')
     git_absorb('0.9.0')
     shellcheck('0.11.0')
