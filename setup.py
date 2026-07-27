@@ -232,6 +232,13 @@ def node(d: Path, v: str):
     extract(f'https://nodejs.org/dist/v{v}/node-v{v}-{tag}.tar.xz', WORK)
     sh(f'mv {WORK}/node-v{v}-{tag}/* {d}')
 
+@pkg()
+def zig(d: Path, v: str):
+    tag = {('linux','x86_64'):'x86_64-linux', ('darwin','arm64'):'aarch64-macos'}[(sys, arch)]
+    extract(f'https://ziglang.org/download/{v}/zig-{tag}-{v}.tar.xz', WORK)
+    sh(f'mv {WORK}/zig-{tag}-{v} {d}/zig')
+    sh(f'mkdir -p {d}/bin && ln -sf ../zig/zig {d}/bin/zig')
+
 @pkg(deps={'cmake', 'rust'})
 def fish(d: Path, v: str):
     rust = PKGS/'rust'
@@ -803,6 +810,7 @@ if __name__ == '__main__':
     rust('nightly')
     node('24.12.0')
     bun('1.3.9')
+    zig('0.15.2')
 
     # Libs
     # Tmux
