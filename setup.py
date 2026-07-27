@@ -424,6 +424,12 @@ def gh(d: Path, v: str):
     sh(f'mv {WORK}/gh_{v}_{tag}/* {d}/')
 
 @pkg()
+def git_absorb(d: Path, v: str):
+    tag = {('linux','x86_64'):'x86_64-unknown-linux-musl', ('darwin','arm64'):'x86_64-apple-darwin'}[(sys, arch)]
+    extract(f'https://github.com/tummychow/git-absorb/releases/download/{v}/git-absorb-{v}-{tag}.tar.gz', WORK)
+    install(WORK/f'git-absorb-{v}-{tag}/git-absorb', d)
+
+@pkg()
 def shellcheck(d: Path, v: str):
     tag = {('linux','x86_64'):'linux.x86_64', ('darwin','arm64'):'darwin.aarch64'}[(sys, arch)]
     extract(f'https://github.com/koalaman/shellcheck/releases/download/v{v}/shellcheck-v{v}.{tag}.tar.xz', WORK)
@@ -835,6 +841,7 @@ if __name__ == '__main__':
     dust('1.2.4')
     dua('2.32.2')
     gh('2.87.3')
+    git_absorb('0.9.0')
     shellcheck('0.11.0')
     ykman('5.9.1')
 
