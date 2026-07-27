@@ -85,7 +85,7 @@ F.project = {
     path = path or vim.fn.expand('%:p:h')
     local dirs, seen = {}, {}
     for _, marker in ipairs({'.jack', '.git'}) do
-      for _, dir in ipairs(vim.fs.find(marker, { path = path, upward = true, type = 'directory' })) do
+      for _, dir in ipairs(vim.fs.find(marker, { path = path, upward = true })) do
         local parent = vim.fs.dirname(dir)
         if not seen[parent] then
           seen[parent] = true
