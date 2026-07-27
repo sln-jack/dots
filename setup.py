@@ -465,8 +465,7 @@ def wireshark(d: Path, v: str):
     system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
     libpcap = PKGS/'libpcap'
     disable = [f'-DBUILD_{tool}=OFF' for tool in [
-        'rawshark','sharkd','tfshark','capinfos','editcap',
-        'mergecap','reordercap','text2pcap','randpkt','randpktdump',
+        'rawshark','sharkd','tfshark', 'text2pcap','randpkt','randpktdump',
         'mmdbresolve','ciscodump','sshdump','wifidump','udpdump',
         'androiddump','dpauxmon','sdjournal','captype'
     ]]
