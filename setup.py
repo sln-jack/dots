@@ -816,7 +816,7 @@ if __name__ == '__main__':
     if sys == 'macos': openssl('3.6.1')
     sqlite('3510100')
     python('3.14.0')
-    if sys=='linux': clang('21.1.0')
+    if sys=='linux': clang('22.1.0')
     cmake('3.31.9')
     meson('1.9.2')
     rust('nightly')
