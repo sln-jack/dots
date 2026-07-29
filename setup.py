@@ -295,6 +295,7 @@ def uv(d: Path, v: str):
     sh(f'mkdir -p {d}/bin')
     sh(f'mv {WORK}/uv-{triple}/uv {WORK}/uv-{triple}/uvx {d}/bin/')
 
+# See https://github.com/openai/codex/releases
 @pkg()
 def codex(d: Path, v: str):
     tag = triple.replace('gnu', 'musl')
@@ -862,8 +863,8 @@ if __name__ == '__main__':
     # Bash
     bash_language_server('5.6.0')
     # AI
-    codex('0.98.0')
-    claude('2.1.186')
+    codex('0.145.0')
+    claude('2.1.220')
     # DB
     postgres('18.3')
     sqlcmd('1.9.0')
