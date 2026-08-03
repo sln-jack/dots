@@ -955,15 +955,15 @@ if __name__ == '__main__':
     for dir in ['bin', 'lib']:
         dst = PREFIX/dir
         sh(f'rm -rf {dst} && mkdir {dst}')
-        for pkg in sorted(PKGS.iterdir()):
-            src = pkg/dir
+        for pkg in sorted(PLAN):
+            src = PKGS/pkg/dir
             if src.is_dir():
                 lnr(f'{src}/*', dst)
 
     # Python site-packages: symlink all package site-packages into prefix/lib/python/site-packages
     dst = PREFIX/'lib'/'python'/'site-packages'
     dst.mkdir(parents=True, exist_ok=True)
-    for pydir in sorted(PKGS.glob('*/lib/python*/site-packages')):
+    for pydir in sorted(p for pkg in PLAN for p in (PKGS/pkg).glob('lib/python*/site-packages')):
         for item in pydir.iterdir():
             link = dst/item.name
             if not link.exists():
