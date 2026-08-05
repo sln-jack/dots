@@ -567,6 +567,14 @@ def dwm(d: Path, v: str):
     extract(f'https://github.com/sln-jack/dwm/archive/refs/heads/master.tar.gz', WORK)
     sh(f'rm -f {WORK}/dwm-master/config.h && make -j{cpus} && DESTDIR={d} make install', cwd=WORK/'dwm-master')
 
+@pkg(deps={'meson'})
+def scrot(d: Path, v: str):
+    # WARNING: impure to take host imlib2, libX11, libXfixes
+    system = '/usr/share/pkgconfig:/usr/lib64/pkgconfig'
+    extract(f'https://github.com/dreamer/scrot/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_meson(WORK/f'scrot-{v}', d, env=f'PKG_CONFIG_PATH="{system}"')
+    sh(f'ln -sf {ROOT}/files/sshot {d}/bin/sshot')
+
 @pkg()
 def dmenu(d: Path, v: str):
     extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
@@ -897,6 +905,7 @@ if __name__ == '__main__':
         dwm('6.6')
         dmenu('5.4')
         runst('0.2.0')
+        scrot('0.10.0')
 
     # Wayland Windowing
     # libevdev('1.12.1')

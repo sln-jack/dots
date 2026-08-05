@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Buffer so canceling doesn't wipe the clipboard
+png=$(scrot -s /dev/stdout | base64)
+base64 -d <<< "$png" | setsid xclip -selection clipboard -t image/png
