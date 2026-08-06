@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 
-import os, platform, subprocess, shutil, stat, fnmatch
+import argparse, os, platform, subprocess, shutil, stat, fnmatch
 from pathlib import Path
 
 #------ Environment ------------------------------------------------------------------------------------------
+
+cli = argparse.ArgumentParser()
+cli.add_argument('--host', default=os.uname().nodename)
+cli.add_argument('--prefix', type=Path)
+cli = cli.parse_args()
 
 ROOT = Path(__file__).resolve().parent
 PREFIX = ROOT/'prefix'
@@ -11,11 +16,15 @@ PKGS = PREFIX/'pkgs'
 WORK = PREFIX/'work'
 CACHE = PREFIX/'cache'
 
+DEST = cli.prefix.resolve() if cli.prefix else ROOT
+OUT = DEST/'prefix'
+
 PREFIX.mkdir(parents=True, exist_ok=True)
+OUT.mkdir(parents=True, exist_ok=True)
 
 sys  = platform.system().lower()  # linux  | darwin
 arch = platform.machine().lower() # x86_64 | arm64
-host = os.uname().nodename        # navi
+host = cli.host                   # navi
 cpus = str(os.cpu_count() or 1)
 triple = {
     ('x86_64','linux'): 'x86_64-unknown-linux-gnu',
@@ -31,6 +40,7 @@ print(f'  Host: {host}')
 print(f'  Kind: {kind}')
 print(f'  System: {sys}-{arch}')
 print(f'  CPUs: {cpus}')
+if DEST != ROOT: print(f'  Dest: {DEST}')
 
 #------ Primitives -------------------------------------------------------------------------------------------
 
@@ -877,7 +887,7 @@ if __name__ == '__main__':
     bash_language_server('5.6.0')
     # AI
     codex('0.145.0')
-    claude('2.1.220')
+    claude('2.1.222')
     # DB
     postgres('18.3')
     sqlcmd('1.9.0')
@@ -960,26 +970,35 @@ if __name__ == '__main__':
             PLAN[pkg]()
 
     print('Creating prefix...')
+    pkgs = OUT/'pkgs'
+    if DEST != ROOT:
+        print(f'Copying {len(PLAN)} pkgs to {DEST}...')
+        sh(f'mkdir -p {pkgs}')
+        for pkg in sorted(PLAN):
+            sh(f'rm -rf {pkgs}/{pkg} && cp -a {PKGS}/{pkg} {pkgs}/')
+        sh(f'rm -rf {DEST}/config && cp -a {ROOT}/config {DEST}/config')
+        sh(f'cp -a {ROOT}/activate {ROOT}/deactivate {DEST}/')
+
     # Binaries
     for dir in ['bin', 'lib']:
-        dst = PREFIX/dir
+        dst = OUT/dir
         sh(f'rm -rf {dst} && mkdir {dst}')
         for pkg in sorted(PLAN):
-            src = PKGS/pkg/dir
+            src = pkgs/pkg/dir
             if src.is_dir():
                 lnr(f'{src}/*', dst)
 
     # Python site-packages: symlink all package site-packages into prefix/lib/python/site-packages
-    dst = PREFIX/'lib'/'python'/'site-packages'
+    dst = OUT/'lib'/'python'/'site-packages'
     dst.mkdir(parents=True, exist_ok=True)
-    for pydir in sorted(p for pkg in PLAN for p in (PKGS/pkg).glob('lib/python*/site-packages')):
+    for pydir in sorted(p for pkg in PLAN for p in (pkgs/pkg).glob('lib/python*/site-packages')):
         for item in pydir.iterdir():
             link = dst/item.name
             if not link.exists():
                 link.symlink_to(os.path.relpath(item, dst))
 
     # Gated on base_prefix so foreign Pythons inheriting PYTHONPATH don't graft.
-    (PREFIX/'lib'/'python'/'sitecustomize.py').write_text(
+    (OUT/'lib'/'python'/'sitecustomize.py').write_text(
         'import os, sys, site\n'
         'here = os.path.dirname(__file__)\n'
         'if os.path.realpath(sys.base_prefix) == os.path.realpath(f"{here}/../../pkgs/python"):\n'
@@ -987,13 +1006,13 @@ if __name__ == '__main__':
     )
     # Config
     def conf(src_name, dst_name=None):
-        target = ROOT/'config'/src_name
-        link = PREFIX/'config'/(dst_name or src_name)
+        target = DEST/'config'/src_name
+        link = OUT/'config'/(dst_name or src_name)
         rel = os.path.relpath(target, link.parent)
         sh(f'mkdir -p {link.parent}')
         sh(f'ln -sf {rel} {link}')
 
-    sh(f'rm -rf {PREFIX}/config && mkdir {PREFIX}/config')
+    sh(f'rm -rf {OUT}/config && mkdir {OUT}/config')
     conf('git')
     conf('tmux.conf', 'tmux/tmux.conf')
     conf('nvim')
@@ -1010,8 +1029,9 @@ if __name__ == '__main__':
         conf('fish/macos.fish', 'fish/conf.d/macos.fish')
         conf('ghostty.conf', 'ghostty/config')
         conf('aerospace.toml', 'aerospace/aerospace.toml')
-    sh(f'mkdir -p {PREFIX}/config/codex')
-    sh(f'ln -s ~/.config/* {PREFIX}/config/ 2>/dev/null || true')
+    sh(f'mkdir -p {OUT}/config/codex')
+    if DEST == ROOT:
+        sh(f'ln -s ~/.config/* {OUT}/config/ 2>/dev/null || true')
 
     print('Cleaning up...')
     # sh(f'rm -rf {WORK}/*')
