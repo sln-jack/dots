@@ -273,6 +273,7 @@ def ncurses(d: Path, v: str):
     extract(f'https://invisible-island.net/archives/ncurses/ncurses-{v}.tar.gz', WORK)
     build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
         f'--with-pkg-config-libdir={d}/lib/pkgconfig')
+    sh(f'rm -rf {d}/bin')
 
 @pkg(deps={'cmake', 'pkgconfig', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
