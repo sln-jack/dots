@@ -589,6 +589,10 @@ def scast(d: Path, v: str):
     sh(f'mkdir -p {d}/bin && cc -O2 -o {d}/bin/scast {ROOT}/files/scast.c -lX11 -lXext')
 
 @pkg()
+def is_interactive_ssh(d: Path, v: str):
+    sh(f'mkdir -p {d}/bin && install -m755 {ROOT}/files/is-interactive-ssh {d}/bin/')
+
+@pkg()
 def dmenu(d: Path, v: str):
     extract(f'https://github.com/sln-jack/dmenu/archive/refs/heads/master.tar.gz', WORK)
     sh(f'rm -f {WORK}/dmenu-master/config.h && make -j{cpus} && DESTDIR={d} make install', cwd=WORK/'dmenu-master')
@@ -877,6 +881,7 @@ if __name__ == '__main__':
     gh('2.87.3')
     git_absorb('0.9.0')
     shellcheck('0.11.0')
+    is_interactive_ssh('1.0')
     ykman('5.9.1')
 
     # Coding

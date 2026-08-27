@@ -1,0 +1,22 @@
+#!/bin/bash
+# ssh_config Match exec helper: succeeds only for an interactive `ssh <host>`
+# with no remote command, telling OpenSSH to apply our RemoteCommand.
+# Any failure means "no" — non-ssh ssh_config parsers (pyinfra/paramiko),
+# piped stdin, or a remote command on the ssh command line.
+set -euo pipefail
+exec 2>/dev/null
+
+[ "$(cat /proc/$PPID/comm)" = ssh ]             # parent is a real ssh client
+readlink /proc/$PPID/fd/0 | grep -q ^/dev/pts/  # with a terminal on stdin
+
+# Skip ssh's options; interactive means the destination is the only arg left.
+mapfile -d '' -t argv < /proc/$PPID/cmdline
+set -- "${argv[@]:1}"
+while [[ ${1-} == -* ]]; do
+  case $1 in
+    --) shift; break ;;
+    -[BbcDEeFIiJLlmOoPpQRSWw]) shift 2 ;;  # options taking a separate argument
+    *) shift ;;
+  esac
+done
+[ $# -eq 1 ]
