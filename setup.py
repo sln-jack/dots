@@ -81,10 +81,10 @@ def extract(url: str, dest: Path):
         sh(f'curl -L {url} -o {zip} && unzip -q {zip} -d {dest} && rm -f {zip}')
     else: raise ValueError(f'unknown archive format: {url}')
 
-def install(exe: Path, d: Path):
+def install(exe: Path, d: Path, *, rename: str | None = None):
     sh(f'mkdir -p {d}/bin')
     sh(f'chmod +x {exe}')
-    sh(f'mv {exe} {d}/bin/')
+    sh(f'mv {exe} {d}/bin/{rename or exe}')
 
 def lnr(src, dst):
     """Relative symlinks into dst. src may be a shell glob. Both must share a common parent."""
@@ -311,8 +311,9 @@ def uv(d: Path, v: str):
 def codex(d: Path, v: str):
     tag = triple.replace('gnu', 'musl')
     extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-{tag}.tar.gz', WORK)
-    install(WORK/f'codex-{tag}', d)
-    sh(f'mv {d}/bin/codex-{tag} {d}/bin/codex')
+    extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-code-mode-host-{tag}.tar.gz', WORK)
+    install(WORK/f'codex-{tag}', d, rename='codex')
+    install(WORK/f'codex-code-mode-host-{tag}', d, rename='codex-code-mode-host')
 
 # Get latest version with `curl -L https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest` or stable
 # See https://claude.ai/install.sh 
@@ -894,7 +895,7 @@ if __name__ == '__main__':
     # Bash
     bash_language_server('5.6.0')
     # AI
-    codex('0.145.0')
+    codex('0.153.4')
     claude('2.1.222')
     # DB
     postgres('18.3')
