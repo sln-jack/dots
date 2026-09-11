@@ -233,10 +233,10 @@ def meson(d: Path, v: str):
 
 @pkg()
 def rust(d: Path, v: str):
-    vars = f'RUSTUP_HOME={d}/rustup CARGO_HOME={d}'
+    vars = f'RUSTUP_HOME={d}/rustup CARGO_HOME={CACHE}/cargo'
     sh(f'curl -L https://static.rust-lang.org/rustup/dist/{triple}/rustup-init -o {WORK}/rustup-init')
     sh(f'chmod +x {WORK}/rustup-init')
-    sh(f'RUSTUP_HOME={d}/rustup CARGO_HOME={d} {WORK}/rustup-init --default-toolchain {v} --component rust-analyzer --no-modify-path -y')
+    sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --component rust-analyzer --no-modify-path -y')
     sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
     sh(f'{vars} PATH="{d}/bin:$PATH" rustup component remove rust-docs')
 
@@ -256,7 +256,7 @@ def zig(d: Path, v: str):
 @pkg(deps={'cmake', 'rust'})
 def fish(d: Path, v: str):
     rust = PKGS/'rust'
-    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={rust}'
+    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo'
 
     extract(f'https://github.com/fish-shell/fish-shell/releases/download/{v}/fish-{v}.tar.xz', WORK)
     build_cmake(WORK/f'fish-{v}', d, env=vars)
@@ -606,7 +606,7 @@ def dmenu(d: Path, v: str):
 @pkg(deps={'rust'})
 def runst(d: Path, v: str):
     rust = PKGS/'rust'
-    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={rust} PKG_CONFIG_PATH=/usr/lib64/pkgconfig'
+    vars = f'PATH="{rust}/bin:$PATH" RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PKG_CONFIG_PATH=/usr/lib64/pkgconfig'
     src = Path.home()/'git/runst'
     sh(f'{vars} cargo build --release', cwd=src)
     sh(f'mkdir -p {d}/bin')
