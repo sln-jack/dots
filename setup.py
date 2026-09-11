@@ -239,12 +239,14 @@ def rust(d: Path, v: str):
     sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --component rust-analyzer --no-modify-path -y')
     sh(f'{vars} {WORK}/rustup-init --default-toolchain {v} --no-modify-path -y')
     sh(f'{vars} PATH="{d}/bin:$PATH" rustup component remove rust-docs')
+    sh(f'rm -rf {d}/rustup/toolchains/*/share/{{doc,man}}')
 
 @pkg()
 def node(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
     extract(f'https://nodejs.org/dist/v{v}/node-v{v}-{tag}.tar.xz', WORK)
     sh(f'mv {WORK}/node-v{v}-{tag}/* {d}')
+    sh(f'rm -rf {d}/share/man')
 
 @pkg()
 def zig(d: Path, v: str):
@@ -260,6 +262,7 @@ def fish(d: Path, v: str):
 
     extract(f'https://github.com/fish-shell/fish-shell/releases/download/{v}/fish-{v}.tar.xz', WORK)
     build_cmake(WORK/f'fish-{v}', d, env=vars)
+    sh(f'rm -rf {d}/share/man {d}/share/fish/man {d}/share/doc')
 
 @pkg(deps={'cmake'})
 def libevent(d: Path, v: str):
@@ -277,7 +280,10 @@ def ncurses(d: Path, v: str):
     extract(f'https://invisible-island.net/archives/ncurses/ncurses-{v}.tar.gz', WORK)
     build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
         f'--with-pkg-config-libdir={d}/lib/pkgconfig')
-    sh(f'rm -rf {d}/bin')
+    sh(f'rm -rf {d}/bin {d}/share/man')
+    keep = ' '.join(f'! -name {t}' for t in ['linux', 'xterm-256color', 'alacritty', 'tmux-256color'])
+    sh(f'find {d}/share/terminfo \\( -type f -o -type l \\) {keep} -delete')
+    sh(f'find {d}/share/terminfo -type d -empty -delete')
 
 @pkg(deps={'cmake', 'pkgconfig', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
@@ -359,6 +365,7 @@ def postgres(d: Path, v: str):
 @pkg(deps={'python', 'node'})
 def basedpyright(d: Path, v: str):
     build_pip(d, v, 'basedpyright')
+    sh(f'rm -rf {d}/share/man')
 
 @pkg(deps={'node'})
 def bash_language_server(d: Path, v: str):
@@ -439,6 +446,7 @@ def gh(d: Path, v: str):
     ext = 'zip' if sys == 'darwin' else 'tar.gz'
     extract(f'https://github.com/cli/cli/releases/download/v{v}/gh_{v}_{tag}.{ext}', WORK)
     sh(f'mv {WORK}/gh_{v}_{tag}/* {d}/')
+    sh(f'rm -rf {d}/share/man')
 
 @pkg()
 def git_absorb(d: Path, v: str):
@@ -518,6 +526,7 @@ def termshark(d: Path, v: str):
 def libpcap(d: Path, v: str):
     extract(f'https://www.tcpdump.org/release/libpcap-{v}.tar.xz', WORK)
     build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus', '--enable-shared', '--enable-static')
+    sh(f'rm -rf {d}/share/man')
 
 @pkg(deps={'libpcap'})
 def tcpreplay(d: Path, v: str):
