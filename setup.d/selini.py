@@ -26,9 +26,10 @@ def netcoredbg(d: Path, v: str):
 
 if sys == 'linux':
     # C#
-    dotnet('10.0.100-rc.2.25502.107', ['9.0.306', '8.0.415'])
-    roslyn_ls('2.93.22')
-    netcoredbg('3.1.2-1054')
+    if role('dev'):
+        dotnet('10.0.100-rc.2.25502.107', ['9.0.306', '8.0.415'])
+        roslyn_ls('2.93.22')
+        netcoredbg('3.1.2-1054')
 
     # Networking
     #wireshark('4.6.2')

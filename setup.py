@@ -6,7 +6,7 @@ from pathlib import Path
 #------ Environment ------------------------------------------------------------------------------------------
 
 cli = argparse.ArgumentParser()
-cli.add_argument('--host', default=os.uname().nodename)
+cli.add_argument('--roles', default='')
 cli.add_argument('--prefix', type=Path)
 cli = cli.parse_args()
 
@@ -24,20 +24,24 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 sys  = platform.system().lower()  # linux  | darwin
 arch = platform.machine().lower() # x86_64 | arm64
-host = cli.host                   # navi
 cpus = str(os.cpu_count() or 1)
 triple = {
     ('x86_64','linux'): 'x86_64-unknown-linux-gnu',
     ('arm64','darwin'): 'aarch64-apple-darwin',
 }[(arch, sys)]
 
-def hosts(*patterns): return any(fnmatch.fnmatch(host, p) for p in patterns)
-if hosts('dsk-*'):  kind = 'desktop'
-else:               kind = 'server'
+def host(*patterns): return any(fnmatch.fnmatch(os.uname().nodename.lower(), p.lower()) for p in patterns)
+def role(*names): return any(n.lower() in ROLES for n in names)
+
+ROLES = {r.strip().lower() for r in cli.roles.split(',') if r.strip()}
+if not ROLES:
+    if   host('dsk-nyc-linux-01'):     ROLES = {'selini', 'dev', 'desktop'}
+    elif host('mtl-fit-c-03'):         ROLES = {'selini', 'dev'}
+    elif host('ta-tky-*', 'ac-hkg-*'): ROLES = {'selini'}
 
 print('Probing environment...')
-print(f'  Host: {host}')
-print(f'  Kind: {kind}')
+print(f'  Host: {os.uname().nodename.lower()}')
+print(f'  Roles: {" ".join(sorted(ROLES)) or "-"}')
 print(f'  System: {sys}-{arch}')
 print(f'  CPUs: {cpus}')
 if DEST != ROOT: print(f'  Dest: {DEST}')
@@ -841,22 +845,24 @@ if __name__ == '__main__':
     print('\nAdding packages: base')
 
     # Toolchains
-    pkgconfig('0.29.2')
-    ninja('1.13.2')
-    m4('1.4.20')
-    automake('1.18.1')
-    if sys == 'macos': openssl('3.6.1')
-    sqlite('3510100')
-    python('3.14.0')
-    if sys=='linux': clang('22.1.0')
-    cmake('3.31.9')
-    meson('1.9.2')
-    rust('nightly')
-    node('24.12.0')
-    bun('1.3.9')
-    zig('0.15.2')
+    if role('dev'):
+        pkgconfig('0.29.2')
+        ninja('1.13.2')
+        m4('1.4.20')
+        automake('1.18.1')
+        if sys == 'macos': openssl('3.6.1')
+        if sys=='linux': clang('22.1.0')
+        cmake('3.31.9')
+        meson('1.9.2')
+        rust('nightly')
+        node('24.12.0')
+        bun('1.3.9')
+        zig('0.15.2')
+        python('3.14.0')
+        libxml2('2.15.1')
 
     # Libs
+    sqlite('3510100')
     # Tmux
     ncurses('6.6')
     libevent('2.1.12-stable')
@@ -869,7 +875,7 @@ if __name__ == '__main__':
     zoxide('0.9.8')
     direnv('2.37.1')
     # Tools
-    pixi('0.66.0')
+    if role('dev'): pixi('0.66.0')
     just('1.46.0')
     fzf('0.68.0')
     ripgrep('15.1.0')
@@ -883,17 +889,17 @@ if __name__ == '__main__':
     git_absorb('0.9.0')
     shellcheck('0.11.0')
     is_interactive_ssh('1.0')
-    ykman('5.9.1')
+    if role('desktop'): ykman('5.9.1')
 
     # Coding
     nvim('0.11.4')
     # Lua
-    lua_ls('3.15.0')
+    if role('dev'): lua_ls('3.15.0')
     # Python
-    uv('0.11.3')
-    basedpyright('1.39.0')
+    if role('dev'): uv('0.11.3')
+    if role('dev'): basedpyright('1.39.0')
     # Bash
-    bash_language_server('5.6.0')
+    if role('dev'): bash_language_server('5.6.0')
     # AI
     codex('0.153.4')
     claude('2.1.222')
@@ -905,7 +911,6 @@ if __name__ == '__main__':
 
     # Networking
     libpcap('1.10.5')
-    libxml2('2.15.1')
     netcat('0.7.1')
     iperf3('3.21')
     tcpreplay('4.5.1')
@@ -915,7 +920,7 @@ if __name__ == '__main__':
     snitch('0.2.2')
 
     # Gui
-    if kind == 'desktop':
+    if role('desktop'):
         alacritty('0.16.1')
         neovide('0.15.2')
         zen('1.19.13b')
@@ -984,6 +989,8 @@ if __name__ == '__main__':
     if DEST != ROOT:
         print(f'Copying {len(PLAN)} pkgs to {DEST}...')
         sh(f'mkdir -p {pkgs}')
+        for p in pkgs.iterdir():
+            if p.name not in PLAN: sh(f'rm -rf {p}')
         for pkg in sorted(PLAN):
             sh(f'rm -rf {pkgs}/{pkg} && cp -a {PKGS}/{pkg} {pkgs}/')
         sh(f'rm -rf {DEST}/config && cp -a {ROOT}/config {DEST}/config')
