@@ -921,7 +921,7 @@ if __name__ == '__main__':
     claude('2.1.269')
     # DB
     postgres('18.3')
-    sqlcmd('1.9.0')
+    sqlcmd('1.10.0')
     duckdb('1.4.4')
     influx('2.8.0')
 
