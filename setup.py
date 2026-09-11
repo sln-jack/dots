@@ -918,7 +918,7 @@ if __name__ == '__main__':
     if role('dev'): systemd_lsp('v2026.08.03')
     # AI
     codex('0.153.4')
-    claude('2.1.222')
+    claude('2.1.269')
     # DB
     postgres('18.3')
     sqlcmd('1.9.0')
