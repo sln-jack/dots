@@ -167,6 +167,13 @@ local plugins = {
       })
 
       vim.lsp.enable('rust_analyzer')
+
+      vim.lsp.config('clangd', {
+        cmd = {
+          'clangd',
+          -- expand driver query to also match e.g. conda gcc
+          '--query-driver=/**/g++,/**/gcc,/**/cc,/**/c++,/**/clang,/**/clang++' },
+      })
       vim.lsp.enable('clangd')
 
       -- basedpyright only auto-detects .venv, add support for .pixi
