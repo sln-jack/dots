@@ -129,10 +129,11 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{meson} compile -C build', cwd=src)
     sh(f'{meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str):
+def build_cargo(d: Path, v: str, crate: str, git: str = None):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
-    sh(f'{cargo} install {crate}@{v} --locked --root {d}')
+    src = f'--git {git} --tag {v}' if git else f'{crate}@{v}'
+    sh(f'{cargo} install {src} --locked --root {d}')
 
 
 def build_pip(d: Path, v: str, package: str):
@@ -370,6 +371,10 @@ def basedpyright(d: Path, v: str):
 @pkg(deps={'node'})
 def bash_language_server(d: Path, v: str):
     build_npm(d, v, 'bash-language-server')
+
+@pkg(deps={'rust'})
+def systemd_lsp(d: Path, v: str):
+    build_cargo(d, v, 'systemd-lsp', git='https://github.com/JFryy/systemd-lsp')
 
 @pkg(deps={'python'})
 def ykman(d: Path, v: str):
@@ -909,6 +914,8 @@ if __name__ == '__main__':
     if role('dev'): basedpyright('1.39.0')
     # Bash
     if role('dev'): bash_language_server('5.6.0')
+    # Systemd
+    if role('dev'): systemd_lsp('v2026.08.03')
     # AI
     codex('0.153.4')
     claude('2.1.222')

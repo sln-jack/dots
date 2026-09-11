@@ -184,6 +184,9 @@ local plugins = {
 
       vim.lsp.enable('bashls')
 
+      vim.lsp.config('systemd_ls', { cmd = { 'systemd-lsp' } })
+      vim.lsp.enable('systemd_ls')
+
       vim.lsp.config('lua_ls', {
         settings = {
           Lua = {
@@ -450,6 +453,12 @@ M.setup_vim = function()
   vim.o.shiftwidth = 4                 -- Default indent size
   vim.o.tabstop = 4                    -- Tab width
   vim.o.expandtab = true               -- Use spaces instead of tabs
+
+  vim.filetype.add({
+    extension = {
+      service = 'systemd', socket = 'systemd', timer = 'systemd', target = 'systemd', slice = 'systemd',
+    },
+  })
 
   -- Clipboard (schedule to avoid startup delay)
   vim.schedule(function()
