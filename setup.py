@@ -1062,7 +1062,6 @@ if __name__ == '__main__':
         conf('fish/macos.fish', 'fish/conf.d/macos.fish')
         conf('ghostty.conf', 'ghostty/config')
         conf('aerospace.toml', 'aerospace/aerospace.toml')
-    sh(f'mkdir -p {OUT}/config/codex')
     if DEST == ROOT:
         sh(f'ln -s ~/.config/* {OUT}/config/ 2>/dev/null || true')
 
