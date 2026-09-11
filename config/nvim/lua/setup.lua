@@ -461,8 +461,15 @@ M.setup_vim = function()
   vim.o.tabstop = 4                    -- Tab width
   vim.o.expandtab = true               -- Use spaces instead of tabs
 
+  -- Jinja filetype comes from the inner extension (app.yaml.j2 -> yaml.jinja)
+  local function jinja(path, bufnr)
+    local base = vim.filetype.match({ buf = bufnr, filename = (path:gsub('%.%w+$', '')) })
+    return base and (base .. '.jinja') or 'jinja'
+  end
+  -- Filetypes
   vim.filetype.add({
     extension = {
+      j2 = jinja, jinja = jinja, jinja2 = jinja,
       service = 'systemd', socket = 'systemd', timer = 'systemd', target = 'systemd', slice = 'systemd',
     },
   })
