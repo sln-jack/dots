@@ -497,6 +497,13 @@ def sockseek(d: Path, v: str):
     install(WORK/'sockseek/sockseek', d)
 
 @pkg()
+def git_lfs(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
+    ext = 'zip' if sys == 'darwin' else 'tar.gz'
+    extract(f'https://github.com/git-lfs/git-lfs/releases/download/v{v}/git-lfs-{tag}-v{v}.{ext}', WORK)
+    install(WORK/f'git-lfs-{v}/git-lfs', d)
+
+@pkg()
 def git_absorb(d: Path, v: str):
     tag = {('linux','x86_64'):'x86_64-unknown-linux-musl', ('darwin','arm64'):'x86_64-apple-darwin'}[(sys, arch)]
     extract(f'https://github.com/tummychow/git-absorb/releases/download/{v}/git-absorb-{v}-{tag}.tar.gz', WORK)
@@ -711,6 +718,7 @@ if __name__ == '__main__':
     dua('2.32.2')
     zstd('1.5.7')
     gh('2.87.3')
+    git_lfs('3.8.0')
     git_absorb('0.9.0')
     shellcheck('0.11.0')
     is_interactive_ssh('1.0')
