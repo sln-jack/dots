@@ -164,10 +164,10 @@ def flex(d: Path, v: str):
     build_autotools(WORK/f'flex-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
 
 @pkg()
-def pkgconfig(d: Path, v: str):
-    extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
-    build_autotools(WORK/f'pkg-config-{v}', d, '--with-internal-glib',
-        env='CFLAGS="-Wno-int-conversion"')
+def pkgconf(d: Path, v: str):
+    extract(f'https://distfiles.dereferenced.org/pkgconf/pkgconf-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'pkgconf-{v}', d)
+    sh(f'ln -sf pkgconf {d}/bin/pkg-config')
 
 @pkg()
 def ninja(d: Path, v: str):
@@ -212,12 +212,12 @@ def sqlite(d: Path, v: str):
     extract(f'https://www.sqlite.org/2025/sqlite-autoconf-{v}.tar.gz', WORK)
     build_autotools(WORK/f'sqlite-autoconf-{v}', d)
 
-@pkg(deps={'sqlite', 'openssl', 'pkgconfig'})
+@pkg(deps={'sqlite', 'openssl', 'pkgconf'})
 def python(d: Path, v: str):
     sqlite = PKGS/'sqlite/lib'
     openssl_dir = PKGS/'openssl'
     pkg_config_path = f'{openssl_dir}/lib/pkgconfig:{sqlite}/pkgconfig'
-    pkg_config = f'{PKGS}/pkgconfig/bin/pkg-config'
+    pkg_config = f'{PKGS}/pkgconf/bin/pkgconf'
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
     build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules',
         f'--with-openssl={openssl_dir}', '--with-openssl-rpath=auto',
@@ -298,7 +298,7 @@ def ncurses(d: Path, v: str):
     sh(f'find {d}/share/terminfo \\( -type f -o -type l \\) {keep} -delete')
     sh(f'find {d}/share/terminfo -type d -empty -delete')
 
-@pkg(deps={'cmake', 'pkgconfig', 'bison', 'libevent', 'libutf8proc', 'ncurses'})
+@pkg(deps={'cmake', 'pkgconf', 'bison', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
     bison = PKGS/'bison'
     ncurses = PKGS/'ncurses/lib/pkgconfig'
@@ -314,7 +314,7 @@ def tmux(d: Path, v: str):
     build_autotools(
         WORK/f'tmux-{v}', d,
         f'PATH="{bison}/bin:$PATH"',
-        f'PKG_CONFIG="{PKGS}/pkgconfig/bin/pkg-config"',
+        f'PKG_CONFIG="{PKGS}/pkgconf/bin/pkgconf"',
         f'PKG_CONFIG_PATH="{pkg_config_path}"',
         flags,
     )
@@ -627,7 +627,7 @@ if __name__ == '__main__':
 
     # Toolchains
     if role('dev'):
-        pkgconfig('0.29.2')
+        pkgconf('3.0.7')
         ninja('1.13.2')
         m4('1.4.20')
         bison('3.8.2')
