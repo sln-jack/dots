@@ -572,10 +572,36 @@ M.setup_vim = function()
   end
 end
 
+-- CUSTOM LANGUAGES ----------------------------------------------------------------------------------------------
+
+-- Tree-sitter grammars in config/nvim/treesitter/ as <lang>.<ext>.so + <lang>.<ext>.scm.
+-- e.g. zen-gram.zg.so registers language 'zen-gram' for *.zg, exporting tree_sitter_zen_gram.
+M.setup_languages = function()
+  local dir = vim.fn.stdpath('config') .. '/treesitter'
+  for _, so in ipairs(vim.fn.glob(dir .. '/*.so', false, true)) do
+    local stem = vim.fn.fnamemodify(so, ':t:r')
+    local lang, ext = stem:match('^(.+)%.([^%.]+)$')
+    if lang and ext then
+      vim.treesitter.language.add(lang, { path = so, symbol_name = (lang:gsub('-', '_')) })
+      local scm = io.open(dir .. '/' .. stem .. '.scm')
+      if scm then
+        vim.treesitter.query.set(lang, 'highlights', scm:read('*a'))
+        scm:close()
+      end
+      vim.filetype.add({ pattern = { ['.+%.' .. ext] = lang } })
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = lang,
+        callback = function(args) vim.treesitter.start(args.buf, lang) end,
+      })
+    end
+  end
+end
+
 -- MAIN SETUP ----------------------------------------------------------------------------------------------------
 
 M.setup = function()
   M.setup_vim()
+  M.setup_languages()
   require('lazy').setup(plugins)
 end
 
