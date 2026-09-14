@@ -661,6 +661,10 @@ def fonts(d: Path, v: str):
     sh(f'mkdir -p {OUT}/share/fonts && cp {ROOT}/files/*.ttf {OUT}/share/fonts/ && fc-cache -f {OUT}/share/fonts')
 
 @pkg()
+def noto_emoji(d: Path, v: str):
+    sh(f'mkdir -p {OUT}/share/fonts && curl -L https://github.com/googlefonts/noto-emoji/raw/refs/tags/v{v}/fonts/NotoColorEmoji.ttf -o {OUT}/share/fonts/NotoColorEmoji.ttf && fc-cache -f {OUT}/share/fonts')
+
+@pkg()
 def is_interactive_ssh(d: Path, v: str):
     sh(f'mkdir -p {d}/bin && install -m755 {ROOT}/files/is-interactive-ssh {d}/bin/')
 
@@ -761,6 +765,7 @@ if __name__ == '__main__':
     # Gui
     if role('desktop'):
         fonts('34.8.0-nf3.5.1')
+        noto_emoji('2.051')
         alacritty('0.16.1')
         neovide('0.15.2')
         zen('1.19.13b')
