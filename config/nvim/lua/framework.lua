@@ -659,7 +659,7 @@ local function setup_global()
     vim.api.nvim_create_autocmd('BufEnter', {
       callback = function(args)
         local path = args.file
-        if path == '' then return end
+        if path == '' then path = vim.fn.getcwd() end
 
         local projects = cache[path]
         if not projects then
@@ -671,6 +671,7 @@ local function setup_global()
         for _, dir in ipairs(projects) do
           local init = dir .. '/.nvim/init.lua'
           if not state.projects[init] and vim.fn.filereadable(init) == 1 then
+            state.projects[init] = true
             vim.cmd('source ' .. init)
             vim.notify('Loaded ' .. init)
           end
