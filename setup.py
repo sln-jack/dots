@@ -493,6 +493,10 @@ def shellcheck(d: Path, v: str):
 def dua(d: Path, v: str):
     build_cargo(d, v, 'dua-cli')
 
+@pkg(deps={'rust'})
+def cargo_watch(d: Path, v: str):
+    build_cargo(d, v, 'cargo-watch')
+
 @pkg()
 def zstd(d: Path, v: str):
     extract(f'https://github.com/facebook/zstd/releases/download/v{v}/zstd-{v}.tar.gz', WORK)
@@ -682,6 +686,7 @@ if __name__ == '__main__':
     git_absorb('0.9.0')
     shellcheck('0.11.0')
     is_interactive_ssh('1.0')
+    if role('dev'): cargo_watch('8.5.3')
     if role('desktop'): ykman('5.9.1')
 
     # Coding
