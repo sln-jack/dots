@@ -129,12 +129,13 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{meson} compile -C build', cwd=src)
     sh(f'{meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str, git: str = None, features: list = []):
+def build_cargo(d: Path, v: str, crate: str, git: str = None, features: list = [], locked: bool = True):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
     src = f'--git {git} --tag {v}' if git else f'{crate}@{v}'
     features = f'--no-default-features --features {",".join(features)}' if features else ''
-    sh(f'{cargo} install {src} {features} --locked --root {d}')
+    locked = '--locked' if locked else ''
+    sh(f'{cargo} install {src} {features} {locked} --root {d}')
 
 
 def build_pip(d: Path, v: str, package: str):
@@ -596,6 +597,11 @@ def influx(d: Path, v: str):
     extract(f'https://dl.influxdata.com/influxdb/releases/influxdb2-client-{v}-{tag}.tar.gz', WORK)
     install(WORK/'influx', d)
 
+@pkg(deps={'rust'})
+def mailtutan(d: Path, v: str):
+    # Unlocked: its Cargo.lock pins proc-macro2 too old for current nightly.
+    build_cargo(d, v, 'mailtutan', locked=False)
+
 @pkg()
 def snitch(d: Path, v: str):
     tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'darwin_arm64'}[(sys, arch)]
@@ -728,6 +734,7 @@ if __name__ == '__main__':
     gping('1.20.1')
     oha('1.12.1')
     snitch('0.2.2')
+    mailtutan('0.3.0')
 
     # Gui
     if role('desktop'):
