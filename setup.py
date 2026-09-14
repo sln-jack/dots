@@ -157,6 +157,12 @@ def bison(d: Path, v: str):
     extract(f'https://ftp.gnu.org/gnu/bison/bison-{v}.tar.xz', WORK)
     build_autotools(WORK/f'bison-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
 
+@pkg(deps={'m4'})
+def flex(d: Path, v: str):
+    m4 = PKGS/'m4'
+    extract(f'https://github.com/westes/flex/releases/download/v{v}/flex-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'flex-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
+
 @pkg()
 def pkgconfig(d: Path, v: str):
     extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
@@ -363,13 +369,14 @@ def lua_ls(d: Path, v: str):
     extract(f'https://github.com/LuaLS/lua-language-server/releases/download/{v}/lua-language-server-{v}-{tag}.tar.gz', d/'lua_ls')
     sh(f'mkdir {d}/bin && ln -sf ../lua_ls/bin/lua-language-server {d}/bin/')
 
-@pkg()
+@pkg(deps={'bison', 'flex'})
 def postgres(d: Path, v: str):
+    path = f'PATH="{PKGS}/bison/bin:{PKGS}/flex/bin:$PATH"'
     extract(f'https://ftp.postgresql.org/pub/source/v{v}/postgresql-{v}.tar.bz2', WORK)
     src = WORK/f'postgresql-{v}'
-    sh(f'./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
+    sh(f'{path} ./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
     for t in ['src/interfaces/libpq', 'src/bin/pg_dump', 'src/bin/psql']:
-        sh(f'make -j{cpus} && make install', cwd=src/t)
+        sh(f'{path} make -j{cpus} && make install', cwd=src/t)
 
 @pkg(deps={'python', 'node'})
 def basedpyright(d: Path, v: str):
@@ -535,10 +542,11 @@ def termshark(d: Path, v: str):
     extract(f'https://github.com/gcla/termshark/releases/download/v{v}/termshark_{v}_{tag}.tar.gz', WORK)
     install(WORK/f'termshark_{v}_{tag}/termshark', d)
 
-@pkg()
+@pkg(deps={'bison', 'flex'})
 def libpcap(d: Path, v: str):
     extract(f'https://www.tcpdump.org/release/libpcap-{v}.tar.xz', WORK)
-    build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus', '--enable-shared', '--enable-static')
+    build_autotools(WORK/f'libpcap-{v}', d, '--disable-dbus', '--enable-shared', '--enable-static',
+        env=f'PATH="{PKGS}/bison/bin:{PKGS}/flex/bin:$PATH"')
     sh(f'rm -rf {d}/share/man')
 
 @pkg()
@@ -623,6 +631,7 @@ if __name__ == '__main__':
         ninja('1.13.2')
         m4('1.4.20')
         bison('3.8.2')
+        flex('2.6.4')
         automake('1.18.1')
         if sys == 'macos': openssl('3.6.1')
         if sys=='linux': clang('22.1.0')
