@@ -174,7 +174,8 @@ local plugins = {
         cmd = {
           'clangd',
           -- expand driver query to also match e.g. conda gcc
-          '--query-driver=/**/g++,/**/gcc,/**/cc,/**/c++,/**/clang,/**/clang++' },
+          '--query-driver=/**/g++,/**/gcc,/**/cc,/**/c++,/**/clang,/**/clang++',
+          '--limit-results=1000' },
       })
       vim.lsp.enable('clangd')
 
@@ -549,6 +550,10 @@ M.setup_vim = function()
       -- Highlight global-scope variables in a distinct color (bold parameter orange)
       local param = vim.api.nvim_get_hl(0, { name = "@variable.parameter", link = false }).fg
       vim.api.nvim_set_hl(0, "@lsp.typemod.variable.globalScope", { fg = param, bold = true })
+
+      -- Telescope match highlight as background only, so colored entries keep their fg
+      local visual = vim.api.nvim_get_hl(0, { name = "Visual", link = false }).bg
+      vim.api.nvim_set_hl(0, "TelescopeMatching", { bg = visual, bold = true })
     end,
   })
 

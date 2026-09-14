@@ -311,7 +311,126 @@ F.lsp = {
 
   -- Find symbol
   symbols = function()
-    require('telescope.builtin').lsp_dynamic_workspace_symbols()
+    local bufnr = vim.api.nvim_get_current_buf()
+    -- clangd kinds in display order; it reports macros as "string" and static members as "property"
+    local kinds = {
+      { 'namespace', '@lsp.type.namespace' }, { 'struct', '@lsp.type.struct' }, { 'class', '@lsp.type.class' },
+      { 'interface', '@lsp.type.class' }, { 'enum', '@lsp.type.enum' }, { 'typeparameter', '@lsp.type.typeParameter' },
+      { 'function', '@lsp.type.function', 'func' }, { 'method', '@lsp.type.method' },
+      { 'constructor', '@lsp.type.method', 'constr' }, { 'operator', '@lsp.type.method' },
+      { 'string', '@lsp.type.function', 'macro' }, { 'enummember', '@lsp.type.enumMember', 'variant' },
+      { 'variable', '@lsp.typemod.variable.globalScope', 'global' }, { 'constant', '@constant' },
+      { 'property', 'Bold', 'static' }, { 'field' },
+    }
+    local kind = {}
+    for i, k in ipairs(kinds) do kind[k[1]] = { order = i, hl = k[2], label = k[3] or k[1] } end
+
+    -- columns: symbol, kind, file; header in the border; widths from content
+    local picker, displayer, widths
+    local file_w = 40
+    local function seg(label, w) return label .. ' ' .. string.rep('─', w - #label) end
+    local function set_columns(items)
+      if not picker.results_win then return end
+      local name_w, kind_w = #'Symbol', #'Kind'
+      for _, item in ipairs(items) do
+        name_w = math.max(name_w, #item.name_)
+        kind_w = math.max(kind_w, #item.label_)
+      end
+      name_w = math.min(name_w, vim.api.nvim_win_get_width(picker.results_win) - kind_w - file_w)
+      if widths == name_w .. ',' .. kind_w then return end
+      widths = name_w .. ',' .. kind_w
+      displayer = require('telescope.pickers.entry_display').create {
+        separator = '  ',
+        items = { { width = name_w }, { width = kind_w }, { remaining = true } },
+      }
+      picker.results_border:change_title('─' .. seg('Symbol', name_w) .. ' ' .. seg('Kind', kind_w) .. ' File', 'NW')
+    end
+    local function display(entry)
+      local item = entry.value
+      return displayer {
+        { item.name_, item.hl_ },
+        item.label_,
+        vim.fn.fnamemodify(item.filename, ':.') .. ':' .. item.lnum,
+      }
+    end
+    local function entry_maker(item)
+      return { value = item, ordinal = item.name_, display = display, filename = item.filename, lnum = item.lnum, col = item.col }
+    end
+
+    -- smartcase: a query with capitals only matches names containing it with that exact case.
+    -- order: exact, prefix, substring, fuzzy (clangd's order); within a tier: same case as
+    -- typed first, then kind, name, file. Further words filter on symbol name or file path.
+    local function tier(query, name)
+      if name == query then return 0 end
+      if name:sub(1, #query) == query then return 1 end
+      if name:find(query, 1, true) then return 2 end
+      return 3
+    end
+    local cancel = function() end
+    local function request(prompt)
+      local words = vim.split(prompt:lower(), '%s+', { trimempty = true })
+      local query = prompt:match('^%s*(%S*)')
+      local tx, rx = require('plenary.async.control').channel.oneshot()
+      cancel()
+      cancel = vim.lsp.buf_request_all(bufnr, 'workspace/symbol', { query = query }, tx)
+      local items = {}
+      for client_id, res in pairs(rx()) do
+        if res.result then
+          local client = vim.lsp.get_client_by_id(client_id)
+          for i, item in ipairs(vim.lsp.util.symbols_to_items(res.result, bufnr, client.offset_encoding)) do
+            local k = kind[item.kind:lower()] or { order = 99, label = item.kind:lower() }
+            item.name_, item.hl_, item.label_ = item.text:sub(#item.kind + 4), k.hl, k.label
+            item.lname_, item.order_, item.idx_ = item.name_:lower(), k.order, i
+            item.case_ = item.name_:find(query, 1, true) and 0 or 1
+            item.tier_ = tier(words[1] or '', item.lname_)
+            local keep = query == query:lower() or item.case_ == 0
+            local haystack = item.lname_ .. ' ' .. item.filename:lower()
+            for w = 2, #words do keep = keep and haystack:find(words[w], 1, true) end
+            if keep then items[#items + 1] = item end
+          end
+        end
+      end
+      table.sort(items, function(a, b)
+        if a.tier_ ~= b.tier_ then return a.tier_ < b.tier_ end
+        if a.tier_ == 3 then return a.idx_ < b.idx_ end
+        if a.case_ ~= b.case_ then return a.case_ < b.case_ end
+        if a.order_ ~= b.order_ then return a.order_ < b.order_ end
+        if a.lname_ ~= b.lname_ then return a.lname_ < b.lname_ end
+        if a.filename ~= b.filename then return a.filename < b.filename end
+        return a.lnum < b.lnum
+      end)
+      for i, item in ipairs(items) do item.rank_ = i end
+      set_columns(items)
+      return items
+    end
+    local sorter = require('telescope.sorters').highlighter_only({})
+    sorter.scoring_function = function(_, _, _, entry) return entry.value.rank_ end
+
+    -- show indexing progress in the title; results are partial until it ends, so re-query then
+    local function title()
+      local msgs = {}
+      for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+        local v = F.state.indexing[client.id]
+        if v then msgs[#msgs + 1] = (v.title or '') .. ' ' .. (v.message or '') end
+      end
+      return #msgs == 0 and 'Symbols' or 'Symbols  (' .. table.concat(msgs, ', ') .. ')'
+    end
+    picker = require('telescope.pickers').new({}, {
+      prompt_title = title(),
+      preview_title = 'Preview',
+      finder = require('telescope.finders').new_dynamic { entry_maker = entry_maker, fn = request },
+      sorter = sorter,
+      previewer = require('telescope.config').values.qflist_previewer({}),
+    })
+    picker:find()
+    vim.api.nvim_create_autocmd('LspProgress', {
+      group = vim.api.nvim_create_augroup('SymbolsProgress', { clear = true }),
+      callback = function(ev)
+        if not vim.api.nvim_buf_is_valid(picker.prompt_bufnr) then return true end
+        picker.prompt_border:change_title(title())
+        if ev.data.params.value.kind == 'end' then picker:refresh() end
+      end,
+    })
   end,
 
   -- Implementations
@@ -624,6 +743,17 @@ local function setup_global()
   if not state.setup then
     require('setup').setup()
     state.setup = true
+  end
+
+  -- Track LSP progress (clangd's background indexing) for the symbol picker
+  if not state.indexing then
+    state.indexing = {}
+    vim.api.nvim_create_autocmd('LspProgress', {
+      callback = function(ev)
+        local v = ev.data.params.value
+        state.indexing[ev.data.client_id] = v.kind ~= 'end' and v or nil
+      end,
+    })
   end
 
   -- Initialize project tracking
