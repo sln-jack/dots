@@ -10,11 +10,11 @@ starship init fish | .
 direnv hook fish | .
 zoxide init fish | .
 
-alias ls="eza"
-alias ll="eza -lh"
-alias lla="eza -lah"
-alias llt="eza -lah --sort time"
-alias lt="eza -lTh"
+alias ls="eza --group-directories-first -s=Name"
+alias ll="ls -lh"
+alias lla="ls -lah"
+alias llt="ls -lah --sort time"
+alias lt="ls -lTh"
 
 abbr -a e nvim
 abbr -a y yazi
