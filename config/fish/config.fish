@@ -90,6 +90,15 @@ function v
     setsid neovide --no-vsync $args >/dev/null 2>&1 &
 end
 
+# Inside navi, nvim takes over the pane instead of drawing to the terminal
+function nvim
+    if set -q NAVI_SOCK; and not set -q NVIM
+        navi nvim $argv
+    else
+        command nvim $argv
+    end
+end
+
 # Make script
 function mksh
     set file $argv[1]
