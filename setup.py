@@ -151,6 +151,12 @@ def m4(d: Path, v: str):
     extract(f'https://ftp.gnu.org/gnu/m4/m4-{v}.tar.xz', WORK)
     build_autotools(WORK/f'm4-{v}', d)
 
+@pkg(deps={'m4'})
+def bison(d: Path, v: str):
+    m4 = PKGS/'m4'
+    extract(f'https://ftp.gnu.org/gnu/bison/bison-{v}.tar.xz', WORK)
+    build_autotools(WORK/f'bison-{v}', d, env=f'PATH="{m4}/bin:$PATH"')
+
 @pkg()
 def pkgconfig(d: Path, v: str):
     extract(f'https://pkgconfig.freedesktop.org/releases/pkg-config-{v}.tar.gz', WORK)
@@ -286,8 +292,9 @@ def ncurses(d: Path, v: str):
     sh(f'find {d}/share/terminfo \\( -type f -o -type l \\) {keep} -delete')
     sh(f'find {d}/share/terminfo -type d -empty -delete')
 
-@pkg(deps={'cmake', 'pkgconfig', 'libevent', 'libutf8proc', 'ncurses'})
+@pkg(deps={'cmake', 'pkgconfig', 'bison', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
+    bison = PKGS/'bison'
     ncurses = PKGS/'ncurses/lib/pkgconfig'
     libevent = PKGS/'libevent/lib/pkgconfig'
     pkg_config_path = f'{ncurses}:{libevent}'
@@ -300,6 +307,7 @@ def tmux(d: Path, v: str):
     extract(f'https://github.com/tmux/tmux/releases/download/{v}/tmux-{v}.tar.gz', WORK)
     build_autotools(
         WORK/f'tmux-{v}', d,
+        f'PATH="{bison}/bin:$PATH"',
         f'PKG_CONFIG="{PKGS}/pkgconfig/bin/pkg-config"',
         f'PKG_CONFIG_PATH="{pkg_config_path}"',
         flags,
@@ -614,6 +622,7 @@ if __name__ == '__main__':
         pkgconfig('0.29.2')
         ninja('1.13.2')
         m4('1.4.20')
+        bison('3.8.2')
         automake('1.18.1')
         if sys == 'macos': openssl('3.6.1')
         if sys=='linux': clang('22.1.0')
