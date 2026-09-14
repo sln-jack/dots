@@ -292,11 +292,20 @@ def libutf8proc(d: Path, v: str):
 def ncurses(d: Path, v: str):
     extract(f'https://invisible-island.net/archives/ncurses/ncurses-{v}.tar.gz', WORK)
     build_autotools(WORK/f'ncurses-{v}', d, '--with-shared', '--without-debug', '--enable-widec', '--enable-pc-files',
-        f'--with-pkg-config-libdir={d}/lib/pkgconfig')
+        '--with-versioned-syms', f'--with-pkg-config-libdir={d}/lib/pkgconfig')
     sh(f'rm -rf {d}/bin {d}/share/man')
     keep = ' '.join(f'! -name {t}' for t in ['linux', 'xterm-256color', 'alacritty', 'tmux-256color'])
     sh(f'find {d}/share/terminfo \\( -type f -o -type l \\) {keep} -delete')
     sh(f'find {d}/share/terminfo -type d -empty -delete')
+
+@pkg(deps={'ncurses'})
+def readline(d: Path, v: str):
+    ncurses = PKGS/'ncurses'
+    extract(f'https://ftp.gnu.org/gnu/readline/readline-{v}.tar.gz', WORK)
+    build_autotools(WORK/f'readline-{v}', d,
+        '--with-curses', '--with-shared-termcap-library', '--enable-multibyte',
+        f'CPPFLAGS=-I{ncurses}/include', f'LDFLAGS=-L{ncurses}/lib',
+        env='bash_cv_termcap_lib=libncursesw')
 
 @pkg(deps={'cmake', 'pkgconf', 'bison', 'libevent', 'libutf8proc', 'ncurses'})
 def tmux(d: Path, v: str):
@@ -648,6 +657,7 @@ if __name__ == '__main__':
     sqlite('3510100')
     # Tmux
     ncurses('6.6')
+    readline('8.3')
     libevent('2.1.12-stable')
     if sys == 'darwin': libutf8proc('2.11.0')
 
