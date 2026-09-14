@@ -129,11 +129,12 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{meson} compile -C build', cwd=src)
     sh(f'{meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str, git: str = None):
+def build_cargo(d: Path, v: str, crate: str, git: str = None, features: list = []):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
     src = f'--git {git} --tag {v}' if git else f'{crate}@{v}'
-    sh(f'{cargo} install {src} --locked --root {d}')
+    features = f'--no-default-features --features {",".join(features)}' if features else ''
+    sh(f'{cargo} install {src} {features} --locked --root {d}')
 
 
 def build_pip(d: Path, v: str, package: str):
@@ -386,6 +387,11 @@ def postgres(d: Path, v: str):
     sh(f'{path} ./configure --prefix={d} --without-icu --without-lz4 --without-zstd --with-openssl', cwd=src)
     for t in ['src/interfaces/libpq', 'src/bin/pg_dump', 'src/bin/psql']:
         sh(f'{path} make -j{cpus} && make install', cwd=src/t)
+
+@pkg(deps={'rust'})
+def sqlx_cli(d: Path, v: str):
+    # rustls instead of native-tls avoids openssl; sqlite is bundled from source.
+    build_cargo(d, v, 'sqlx-cli', features=['rustls', 'postgres', 'sqlite'])
 
 @pkg(deps={'python', 'node'})
 def basedpyright(d: Path, v: str):
@@ -710,6 +716,7 @@ if __name__ == '__main__':
     claude('2.1.269')
     # DB
     postgres('18.3')
+    sqlx_cli('0.9.0')
     sqlcmd('1.10.0')
     duckdb('1.4.4')
     influx('2.8.0')
