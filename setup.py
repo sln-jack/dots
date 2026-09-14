@@ -35,7 +35,8 @@ def role(*names): return any(n.lower() in ROLES for n in names)
 
 ROLES = {r.strip().lower() for r in cli.roles.split(',') if r.strip()}
 if not ROLES:
-    if   host('dsk-nyc-linux-01'):     ROLES = {'selini', 'dev', 'desktop'}
+    if   host('monolith'):             ROLES = {'dev', 'desktop'}
+    elif host('dsk-nyc-linux-01'):     ROLES = {'selini', 'dev', 'desktop'}
     elif host('mtl-fit-c-03'):         ROLES = {'selini', 'dev'}
     elif host('ta-tky-*', 'ac-hkg-*'): ROLES = {'selini'}
 
