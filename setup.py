@@ -497,6 +497,10 @@ def dua(d: Path, v: str):
 def cargo_watch(d: Path, v: str):
     build_cargo(d, v, 'cargo-watch')
 
+@pkg(deps={'rust'})
+def tokei(d: Path, v: str):
+    build_cargo(d, v, 'tokei')
+
 @pkg()
 def zstd(d: Path, v: str):
     extract(f'https://github.com/facebook/zstd/releases/download/v{v}/zstd-{v}.tar.gz', WORK)
@@ -687,6 +691,7 @@ if __name__ == '__main__':
     shellcheck('0.11.0')
     is_interactive_ssh('1.0')
     if role('dev'): cargo_watch('8.5.3')
+    tokei('15.0.0')
     if role('desktop'): ykman('5.9.1')
 
     # Coding
