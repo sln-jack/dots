@@ -58,6 +58,8 @@ local plugins = {
               ['<Esc>'] = 'close',
               ['<C-j>'] = 'move_selection_next',
               ['<C-k>'] = 'move_selection_previous',
+              ['<C-f>'] = 'results_scrolling_down',
+              ['<C-b>'] = 'results_scrolling_up',
             },
           },
         },
