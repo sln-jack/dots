@@ -14,6 +14,7 @@ export STARSHIP_CONFIG_NODOTS=${STARSHIP_CONFIG_NODOTS-$STARSHIP_CONFIG}
 export CODEX_HOME_NODOTS=${CODEX_HOME_NODOTS-$CODEX_HOME}
 export GH_CONFIG_DIR_NODOTS=${GH_CONFIG_DIR_NODOTS-$GH_CONFIG_DIR}
 export BROWSER_NODOTS=${BROWSER_NODOTS-$BROWSER}
+export XINITRC_NODOTS=${XINITRC_NODOTS-$XINITRC}
 
 export PATH="$DOTS/prefix/bin:$HOME/.cargo/bin:$PATH_NODOTS"
 export LD_LIBRARY_PATH="$DOTS/prefix/lib:$LD_LIBRARY_PATH_NODOTS"
@@ -27,6 +28,7 @@ export STARSHIP_CONFIG=$DOTS/prefix/config/starship.toml
 export CODEX_HOME=$DOTS/prefix/share/codex
 export GH_CONFIG_DIR=$DOTS/prefix/share/gh
 export BROWSER=zen
+export XINITRC=$DOTS/prefix/config/xinitrc
 
 mkdir -p $CARGO_HOME $CODEX_HOME
 

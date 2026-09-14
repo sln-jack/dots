@@ -857,6 +857,7 @@ if __name__ == '__main__':
     conf('direnv.toml')
     conf('starship.toml')
     conf('alacritty.toml')
+    conf('xinitrc')
     conf('neovide.toml', 'neovide/config.toml')
     conf('podman-storage.conf', 'containers/storage.conf')
     if sys == 'linux':

@@ -1,2 +1,0 @@
-#!/bin/sh
-exec /usr/libexec/Xorg vt1 "$@"
