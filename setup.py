@@ -608,6 +608,10 @@ def scast(d: Path, v: str):
     sh(f'mkdir -p {d}/bin && cc -O2 -o {d}/bin/scast {ROOT}/files/scast.c -lX11 -lXext')
 
 @pkg()
+def fonts(d: Path, v: str):
+    sh(f'mkdir -p {OUT}/share/fonts && cp {ROOT}/files/*.ttf {OUT}/share/fonts/ && fc-cache -f {OUT}/share/fonts')
+
+@pkg()
 def is_interactive_ssh(d: Path, v: str):
     sh(f'mkdir -p {d}/bin && install -m755 {ROOT}/files/is-interactive-ssh {d}/bin/')
 
@@ -937,6 +941,7 @@ if __name__ == '__main__':
 
     # Gui
     if role('desktop'):
+        fonts('34.8.0-nf3.5.1')
         alacritty('0.16.1')
         neovide('0.15.2')
         zen('1.19.13b')
