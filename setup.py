@@ -337,6 +337,12 @@ def nvim(d: Path, v: str):
     sh(f'mv {WORK}/nvim-{tag}/* {d}')
 
 @pkg()
+def tree_sitter(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
+    extract(f'https://github.com/tree-sitter/tree-sitter/releases/download/v{v}/tree-sitter-cli-{tag}.zip', WORK/'tree-sitter')
+    install(WORK/'tree-sitter/tree-sitter', d)
+
+@pkg()
 def uv(d: Path, v: str):
     extract(f'https://github.com/astral-sh/uv/releases/download/{v}/uv-{triple}.tar.gz', WORK)
     sh(f'mkdir -p {d}/bin')
@@ -708,6 +714,7 @@ if __name__ == '__main__':
 
     # Coding
     nvim('0.11.4')
+    if role('dev'): tree_sitter('0.27.0')
     # Lua
     if role('dev'): lua_ls('3.15.0')
     # Python
