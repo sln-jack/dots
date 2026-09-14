@@ -491,6 +491,12 @@ def gh(d: Path, v: str):
     sh(f'rm -rf {d}/share/man')
 
 @pkg()
+def sockseek(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'osx-arm64'}[(sys, arch)]
+    extract(f'https://github.com/fiso64/sockseek/releases/download/v{v}/sockseek_{v}_{tag}.tar.gz', WORK/'sockseek')
+    install(WORK/'sockseek/sockseek', d)
+
+@pkg()
 def git_absorb(d: Path, v: str):
     tag = {('linux','x86_64'):'x86_64-unknown-linux-musl', ('darwin','arm64'):'x86_64-apple-darwin'}[(sys, arch)]
     extract(f'https://github.com/tummychow/git-absorb/releases/download/{v}/git-absorb-{v}-{tag}.tar.gz', WORK)
@@ -710,6 +716,7 @@ if __name__ == '__main__':
     is_interactive_ssh('1.0')
     if role('dev'): cargo_watch('8.5.3')
     tokei('15.0.0')
+    sockseek('3.0.5')
     if role('desktop'): ykman('5.9.1')
 
     # Coding
