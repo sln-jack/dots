@@ -116,12 +116,12 @@ F.project = {
     end
   end,
 
-  -- Load project-specific config from .jack/init.lua
+  -- Load project-specific config from .nvim/init.lua
   load = function()
     local dir = F.project.dir()
     if not dir then return end
 
-    local init_file = dir .. '/.jack/init.lua'
+    local init_file = dir .. '/.nvim/init.lua'
     if vim.fn.filereadable(init_file) == 1 then
       local chunk = loadfile(init_file)
       if chunk then
@@ -634,7 +634,7 @@ local function setup_global()
     vim.api.nvim_create_autocmd('BufWritePost', {
       pattern = {
         '*/.config/nvim/init.lua',
-        '*/.jack/init.lua',
+        '*/.nvim/init.lua',
       },
       callback = function(args)
         local init = args.file
@@ -642,7 +642,7 @@ local function setup_global()
 
         local dirs = F.project.all(init)
         for _, dir in ipairs(dirs) do
-          local project_init = dir .. '/.jack/init.lua'
+          local project_init = dir .. '/.nvim/init.lua'
           if vim.fn.filereadable(project_init) == 1 then
             vim.cmd('source ' .. project_init)
             vim.notify('Loaded ' .. project_init)
@@ -669,7 +669,7 @@ local function setup_global()
         if #projects == 0 then return end
 
         for _, dir in ipairs(projects) do
-          local init = dir .. '/.jack/init.lua'
+          local init = dir .. '/.nvim/init.lua'
           if not state.projects[init] and vim.fn.filereadable(init) == 1 then
             vim.cmd('source ' .. init)
             vim.notify('Loaded ' .. init)
