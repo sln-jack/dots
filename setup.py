@@ -89,7 +89,7 @@ def extract(url: str, dest: Path):
 def install(exe: Path, d: Path, *, rename: str | None = None):
     sh(f'mkdir -p {d}/bin')
     sh(f'chmod +x {exe}')
-    sh(f'mv {exe} {d}/bin/{rename or exe}')
+    sh(f'mv {exe} {d}/bin/{rename or Path(exe).name}')
 
 def lnr(src, dst):
     """Relative symlinks into dst. src may be a shell glob. Both must share a common parent."""
