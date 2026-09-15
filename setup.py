@@ -687,7 +687,7 @@ if __name__ == '__main__':
         flex('2.6.4')
         automake('1.18.1')
         if sys == 'macos': openssl('3.6.1')
-        if sys=='linux': clang('22.1.0')
+        if sys=='linux': clang('22.1.3')
         cmake('3.31.9')
         meson('1.9.2')
         rust('nightly')
