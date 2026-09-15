@@ -682,7 +682,7 @@ if __name__ == '__main__':
     if role('dev'):
         pkgconf('3.0.7')
         ninja('1.13.2')
-        m4('1.4.20')
+        m4('1.4.21')
         bison('3.8.2')
         flex('2.6.4')
         automake('1.18.1')
