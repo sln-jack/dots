@@ -130,13 +130,13 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{meson} compile -C build', cwd=src)
     sh(f'{meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str, git: str = None, features: list = [], locked: bool = True):
+def build_cargo(d: Path, v: str, crate: str, git: str = None, features: list = [], locked: bool = True, env: str = ''):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
     src = f'--git {git} --tag {v}' if git else f'{crate}@{v}'
     features = f'--no-default-features --features {",".join(features)}' if features else ''
     locked = '--locked' if locked else ''
-    sh(f'{cargo} install {src} {features} {locked} --root {d}')
+    sh(f'{env} {cargo} install {src} {features} {locked} --root {d}')
 
 
 def build_pip(d: Path, v: str, package: str):
@@ -630,11 +630,15 @@ def snitch(d: Path, v: str):
 
 @pkg(deps={'rust'})
 def alacritty(d: Path, v: str):
-    build_cargo(d, v, 'alacritty')
+    # WARNING: impure, takes host X11/freetype/fontconfig. Prefix pkgconf shadows host pkg-config.
+    system = '/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig'
+    build_cargo(d, v, 'alacritty', env=f'PKG_CONFIG_PATH="{system}"')
 
 @pkg(deps={'rust'})
 def neovide(d: Path, v: str):
-    build_cargo(d, v, 'neovide')
+    # WARNING: impure, takes host freetype/fontconfig. Prefix pkgconf shadows host pkg-config.
+    system = '/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig'
+    build_cargo(d, v, 'neovide', env=f'PKG_CONFIG_PATH="{system}"')
 
 @pkg()
 def zen(d: Path, v: str):
