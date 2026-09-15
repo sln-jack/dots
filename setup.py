@@ -694,7 +694,7 @@ if __name__ == '__main__':
         node('24.12.0')
         bun('1.3.9')
         zig('0.16.0')
-        python('3.14.0')
+        python('3.14.4')
         libxml2('2.15.1')
 
     # Libs
