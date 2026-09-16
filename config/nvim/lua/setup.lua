@@ -175,7 +175,8 @@ local plugins = {
           'clangd',
           -- expand driver query to also match e.g. conda gcc
           '--query-driver=/**/g++,/**/gcc,/**/cc,/**/c++,/**/clang,/**/clang++',
-          '--limit-results=1000' },
+          '--limit-results=1000',
+          '--header-insertion=never' },
       })
       vim.lsp.enable('clangd')
 
