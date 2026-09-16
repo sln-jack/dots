@@ -77,14 +77,16 @@ def pkg(*, deps=set()):
 #------ Helpers ----------------------------------------------------------------------------------------------
 
 def extract(url: str, dest: Path):
-    dest.mkdir(parents=True, exist_ok=True)
-    if   url.endswith(('.tar.gz','.tgz')): sh(f'curl -L {url} | tar xzf - -C {dest}')
-    elif url.endswith('.tar.xz'):          sh(f'curl -L {url} | tar xJf - -C {dest}')
-    elif url.endswith('.bz2'):             sh(f'curl -L {url} | tar xjf - -C {dest}')
-    elif url.endswith('.zip'):
-        zip = dest/'temp.zip'
-        sh(f'curl -L {url} -o {zip} && unzip -q {zip} -d {dest} && rm -f {zip}')
+    tmp = dest/f'{Path(url).name}.tmp'
+    sh(f'rm -rf {tmp} && mkdir -p {tmp}')
+    if   url.endswith(('.tar.gz','.tgz')): sh(f'curl -L {url} | tar xzf - -C {tmp}')
+    elif url.endswith('.tar.xz'):          sh(f'curl -L {url} | tar xJf - -C {tmp}')
+    elif url.endswith('.bz2'):             sh(f'curl -L {url} | tar xjf - -C {tmp}')
+    elif url.endswith('.zip'):             sh(f'curl -L {url} -o {tmp}.zip && unzip -q {tmp}.zip -d {tmp} && rm -f {tmp}.zip')
     else: raise ValueError(f'unknown archive format: {url}')
+    for p in tmp.iterdir():
+        sh(f'rm -rf {dest/p.name} && mv {p} {dest}')
+    tmp.rmdir()
 
 def install(exe: Path, d: Path, *, rename: str | None = None):
     sh(f'mkdir -p {d}/bin')
