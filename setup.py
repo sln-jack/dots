@@ -114,6 +114,9 @@ def build_cmake(src: Path, prefix: Path, *args, use_clang: bool = False, targets
     cmake = PKGS/'cmake/bin/cmake'
     compiler = f'-DCMAKE_C_COMPILER={clang} -DCMAKE_CXX_COMPILER={clang}++' if use_clang else ''
     build = WORK/f'{prefix.name}-build'
+    cache = build/'CMakeCache.txt'
+    if cache.exists() and f'CMAKE_HOME_DIRECTORY:INTERNAL={src}\n' not in cache.read_text():
+        sh(f'rm -rf {build}')
     sh(f'{env} {cmake} -S {src} -B {build} {compiler} -DCMAKE_INSTALL_PREFIX={prefix} -DCMAKE_BUILD_TYPE=Release {" ".join(args)}')
     sh(f'{env} {cmake} --build {build} {targets} -j{cpus}')
     if len(components) == 0:
