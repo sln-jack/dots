@@ -80,11 +80,11 @@ end
 -- PROJECT -------------------------------------------------------------------------------------------------------
 
 F.project = {
-  -- Return all `.jack` project directories from the top down
+  -- Return all `.nvim` project directories from the top down
   all = function(path)
     path = path or vim.fn.expand('%:p:h')
     local dirs, seen = {}, {}
-    for _, marker in ipairs({'.jack', '.git'}) do
+    for _, marker in ipairs({'.nvim', '.git'}) do
       for _, dir in ipairs(vim.fs.find(marker, { path = path, upward = true })) do
         local parent = vim.fs.dirname(dir)
         if not seen[parent] then
@@ -108,11 +108,11 @@ F.project = {
     return dirs[#dirs]
   end),
 
-  -- Create .jack/ marker in current directory
+  -- Create .nvim/ marker in current directory
   mark = function()
     return function()
-      vim.fn.mkdir('.jack', 'p')
-      vim.notify('Created .jack/ project marker')
+      vim.fn.mkdir('.nvim', 'p')
+      vim.notify('Created .nvim/ project marker')
     end
   end,
 
