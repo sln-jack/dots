@@ -755,7 +755,7 @@ if __name__ == '__main__':
     if role('dev'): systemd_lsp('v2026.08.03')
     # AI
     codex('0.156.1')
-    claude('2.1.269')
+    claude('2.1.281')
     # DB
     postgres('18.3')
     sqlx_cli('0.9.0')
