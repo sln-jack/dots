@@ -95,7 +95,7 @@ def install(exe: Path, d: Path, *, rename: str | None = None):
 
 def lnr(src, dst):
     """Relative symlinks into dst. src may be a shell glob. Both must share a common parent."""
-    sh(f'cd {dst} && for f in {src}; do ln -sf "../${{f#{dst.parent}/}}" .; done')
+    sh(f'cd {dst} && for f in {src}; do [ -e "$f" ] || continue; ln -sf "../${{f#{dst.parent}/}}" .; done')
 
 def build_autotools(src: Path, prefix: Path, *args, env: str = '', use_clang: bool = False):
     clang = PKGS/'clang/bin/clang'
