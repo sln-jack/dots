@@ -358,10 +358,7 @@ def uv(d: Path, v: str):
 @pkg()
 def codex(d: Path, v: str):
     tag = triple.replace('gnu', 'musl')
-    extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-{tag}.tar.gz', WORK)
-    extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-code-mode-host-{tag}.tar.gz', WORK)
-    install(WORK/f'codex-{tag}', d, rename='codex')
-    install(WORK/f'codex-code-mode-host-{tag}', d, rename='codex-code-mode-host')
+    extract(f'https://github.com/openai/codex/releases/download/rust-v{v}/codex-package-{tag}.tar.gz', d)
 
 # Get latest version with `curl -L https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest` or stable
 # See https://claude.ai/install.sh 
@@ -754,7 +751,7 @@ if __name__ == '__main__':
     # Systemd
     if role('dev'): systemd_lsp('v2026.08.03')
     # AI
-    codex('0.156.1')
+    codex('0.158.0')
     claude('2.1.281')
     # DB
     postgres('18.3')
