@@ -744,7 +744,7 @@ if __name__ == '__main__':
     # Lua
     if role('dev'): lua_ls('3.15.0')
     # Python
-    if role('dev'): uv('0.11.3')
+    uv('0.11.3')
     if role('dev'): basedpyright('1.39.0')
     # Bash
     if role('dev'): bash_language_server('5.6.0')
