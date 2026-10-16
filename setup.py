@@ -226,9 +226,9 @@ def python(d: Path, v: str):
     openssl_dir = PKGS/'openssl'
     pkg_config_path = f'{openssl_dir}/lib/pkgconfig:{sqlite}/pkgconfig'
     pkg_config = f'{PKGS}/pkgconf/bin/pkgconf'
+    ssl = [f'--with-openssl={openssl_dir}', '--with-openssl-rpath=auto'] if openssl_dir.exists() else []
     extract(f'https://www.python.org/ftp/python/{v}/Python-{v}.tgz', WORK)
-    build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules',
-        f'--with-openssl={openssl_dir}', '--with-openssl-rpath=auto',
+    build_autotools(WORK/f'Python-{v}', d, '--disable-test-modules', *ssl,
         f'PKG_CONFIG="{pkg_config}"', f'PKG_CONFIG_PATH="{pkg_config_path}"',
         env=f'LD_LIBRARY_PATH="{sqlite}"')
 
@@ -419,6 +419,15 @@ def systemd_lsp(d: Path, v: str):
 @pkg(deps={'python'})
 def ykman(d: Path, v: str):
     build_pip(d, v, 'yubikey-manager')
+
+# See https://raw.githubusercontent.com/aws/aws-cli/v2/CHANGELOG.rst
+@pkg(deps={'python'})
+def aws(d: Path, v: str):
+    build_pip(d, v, 'awscli')
+    keep = ['s3', 'sdb', 'codedeploy', 'config', 'sagemaker-runtime', 'sms-voice']
+    keep = ' '.join(f'! -name {k}' for k in keep)
+    sh(f'find {d}/lib/python*/site-packages/awscli/botocore/data -mindepth 1 -maxdepth 1 -type d {keep} -exec rm -rf {{}} +')
+    sh(f"find {d}/lib/python*/site-packages/awscli/examples -mindepth 1 -maxdepth 1 -type d -exec rm -rf {{}} +")
 
 @pkg()
 def pixi(d: Path, v: str):
@@ -693,7 +702,7 @@ if __name__ == '__main__':
         flex('2.6.4')
         automake('1.18.1')
         if sys == 'macos': openssl('3.6.1')
-        if sys=='linux': clang('23.1.0')
+        # if sys=='linux': clang('23.1.0')
         cmake('3.31.9')
         meson('1.9.2')
         rust('nightly')
@@ -753,6 +762,8 @@ if __name__ == '__main__':
     # AI
     codex('0.158.0')
     claude('2.1.281')
+    # Cloud
+    if sys == 'linux': aws('1.46.1')
     # DB
     postgres('18.3')
     sqlx_cli('0.9.0')
