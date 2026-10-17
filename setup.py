@@ -47,6 +47,9 @@ print(f'  System: {sys}-{arch}')
 print(f'  CPUs: {cpus}')
 if DEST != ROOT: print(f'  Dest: {DEST}')
 
+# Isolate from any existing PKG_CONFIG_PATH
+os.environ.pop('PKG_CONFIG_PATH', None)
+
 #------ Primitives -------------------------------------------------------------------------------------------
 
 def sh(c: str, cwd: Path = None):
