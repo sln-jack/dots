@@ -70,6 +70,10 @@
     # Refuse non-fast-forward merges; require explicit --no-ff for merge commits
     ff = only
 
+# Clone/fetch/push GitHub over SSH even when given an https URL
+[url "git@github.com:"]
+    insteadOf = https://github.com/
+
 [advice]
     # Remove help spam
     statusHints = false
