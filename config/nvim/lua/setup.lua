@@ -13,6 +13,41 @@ if not vim.uv.fs_stat(lazy_path) then
 end
 vim.opt.rtp:prepend(lazy_path)
 
+-- TELESCOPE SORTER ----------------------------------------------------------------------------------------------
+
+-- Wraps a sorter to reject scattered matches. Space-separated terms must match in order, and each term's matched
+-- spans must start at word boundaries, except the first, which may sit mid-word if it's 3+ chars or the whole term.
+local function strict_sorter(make)
+  local function boundary(s, i)
+    local prev, cur = s:sub(i - 1, i - 1), s:sub(i, i)
+    return i == 1 or prev:match('%W') or (prev:match('%l') and cur:match('%u'))
+  end
+
+  return function(opts)
+    local sorter = make(opts)
+    local score = sorter.scoring_function
+    sorter.scoring_function = function(self, prompt, line, ...)
+      local s = score(self, prompt, line, ...)
+      if s < 0 then return s end
+
+      local offset = 0
+      for term in prompt:gmatch('%S+') do
+        local pos = self:highlighter(term, line:sub(offset + 1)) or {}
+        if #pos == 0 then return -1 end
+        table.sort(pos)
+        local first_ok = pos[3] == pos[1] + 2 or pos[#pos] == pos[1] + #pos - 1
+        for i, p in ipairs(pos) do
+          local starts_span = i == 1 or pos[i - 1] ~= p - 1
+          if starts_span and not boundary(line, p + offset) and not (i == 1 and first_ok) then return -1 end
+        end
+        offset = offset + pos[#pos]
+      end
+      return s
+    end
+    return sorter
+  end
+end
+
 -- PLUGIN DEFINITIONS --------------------------------------------------------------------------------------------
 
 local plugins = {
@@ -48,9 +83,11 @@ local plugins = {
       telescope.load_extension('live_grep_args')
       telescope.load_extension('notify')
 
-
+      local conf = require('telescope.config').values
       telescope.setup {
         defaults = {
+          file_sorter = strict_sorter(conf.file_sorter),
+          generic_sorter = strict_sorter(conf.generic_sorter),
           sorting_strategy = 'ascending',
           layout_config = { prompt_position = 'top' },
           mappings = {
