@@ -9,5 +9,5 @@ xset s off
 # Mouse accel (evdev driver). Skip if no mouse attached.
 MOUSE=$(xinput 2>/dev/null | grep -i "Logitech USB Receiver Mouse" | awk -F'=' '{print $2}' | awk '{print $1}') || true
 if [ -n "${MOUSE:-}" ]; then
-    xinput set-prop "$MOUSE" "Device Accel Profile" 0 || true
+    xinput set-prop "$MOUSE" "libinput Accel Profile Enabled" 0, 1 || true
 fi
