@@ -654,6 +654,38 @@ def neovide(d: Path, v: str):
     system = '/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig'
     build_cargo(d, v, 'neovide', env=f'PKG_CONFIG_PATH="{system}"')
 
+@pkg(deps={'cmake', 'clang'})
+def transcribe(d: Path, v: str):
+    # WARNING: impure, links host libvulkan. Vulkan SDK supplies glslc + SPIRV-Headers at build time only.
+    sdk_v = '1.4.363.0'
+    sdk = WORK/'vulkan-sdk'
+    extract(f'https://sdk.lunarg.com/sdk/download/{sdk_v}/linux/vulkansdk-linux-x86_64-{sdk_v}.tar.xz', sdk)
+    sdk = sdk/sdk_v/'x86_64'
+    extract(f'https://github.com/handy-computer/transcribe.cpp/archive/refs/tags/v{v}.tar.gz', WORK)
+    build_cmake(
+        WORK/f'transcribe.cpp-{v}', d,
+        '-DTRANSCRIBE_VULKAN=ON',
+        '-DTRANSCRIBE_USE_SYSTEM_BLAS=OFF',
+        '-DTRANSCRIBE_BUILD_TESTS=OFF',
+        '-DCMAKE_INSTALL_LIBDIR=lib64', # static libs for stt, kept out of the prefix lib/ links
+        f'-DCMAKE_PREFIX_PATH={sdk}',
+        use_clang=True,
+        env=f'VULKAN_SDK={sdk}',
+    )
+    install(WORK/'transcribe-build/bin/transcribe-cli', d)
+
+@pkg()
+def parakeet(d: Path, v: str):
+    sh(f'curl -L https://huggingface.co/handy-computer/parakeet-unified-en-0.6b-gguf/resolve/{v}/parakeet-unified-en-0.6b-Q8_0.gguf -o {d}/parakeet-unified-en-0.6b-Q8_0.gguf')
+
+@pkg(deps={'transcribe', 'parakeet', 'clang'})
+def stt(d: Path, v: str):
+    # WARNING: impure to take host libX11, libXext, libXinerama, libXtst
+    t = PKGS/'transcribe'
+    libs = ' '.join(f'-l{l}' for l in ['transcribe', 'ggml', 'ggml-cpu', 'ggml-vulkan', 'ggml-base'])
+    sh(f'mkdir -p {d}/bin && {PKGS}/clang/bin/clang -O2 -o {d}/bin/stt {ROOT}/files/stt.c'
+       f' -I{t}/include -L{t}/lib64 {libs} -lvulkan -lX11 -lXext -lXinerama -l:libXtst.so.6 -lstdc++ -lm -lpthread -ldl')
+
 @pkg()
 def zen(d: Path, v: str):
     extract(f'https://github.com/zen-browser/desktop/releases/download/{v}/zen.linux-x86_64.tar.xz', WORK)
@@ -790,6 +822,10 @@ if __name__ == '__main__':
         alacritty('0.16.1')
         neovide('0.15.2')
         zen('1.19.13b')
+        if sys == 'linux':
+            transcribe('0.4.1')
+            parakeet('843b1b175ace04f5a89d379c79e2518c0d065b25')
+            stt('1.0')
 
         # X11 Windowing
         dwm('6.6')
