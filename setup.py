@@ -700,7 +700,7 @@ def dwm(d: Path, v: str):
 @pkg()
 def sshot(d: Path, v: str):
     # WARNING: impure to take host libX11
-    sh(f'mkdir -p {d}/bin && cc -O2 -o {d}/bin/sshot {ROOT}/files/sshot.c -lX11 -lXext')
+    sh(f'mkdir -p {d}/bin && cc -O2 -o {d}/bin/sshot {ROOT}/files/sshot.c -lX11 -lXext -lXfixes')
 
 @pkg()
 def scast(d: Path, v: str):

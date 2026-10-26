@@ -1,19 +1,20 @@
-// cc sshot.c -O2 -lX11 -lXext -o sshot
+// cc sshot.c -O2 -lX11 -lXext -lXfixes -o sshot
 //
-// Drag to select a region, screenshot, and copy to the clipboard.
+// Freeze the screen, drag to select a region, and copy it to the clipboard.
 #include <X11/Xlib.h>
 #include <X11/extensions/shape.h>
+#include <X11/extensions/Xfixes.h>
 #include <X11/keysym.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #define T    2
 #define RED  0xff2222
 #define GRAY 0x808080
 
 static Display *dpy;
-static Window root, guide, box;
+static Window root, freeze, guide, box;
+static XImage *shot;
 static KeyCode esc;
 static int sw, sh;
 static int sx, sy, x, y, w, h;
@@ -27,6 +28,35 @@ static Window window(unsigned long color) {
     XShapeCombineRectangles(dpy, win, ShapeBounding, 0, 0, NULL, 0, ShapeSet, Unsorted);
     XShapeCombineRectangles(dpy, win, ShapeInput, 0, 0, NULL, 0, ShapeSet, Unsorted);
     XMapRaised(dpy, win);
+    return win;
+}
+
+static void draw_cursor(void) {
+    XFixesCursorImage *c = XFixesGetCursorImage(dpy);
+    if (!c) return;
+    for (int r = 0; r < c->height; r++) {
+        int py = c->y - c->yhot + r;
+        if (py < 0 || py >= sh) continue;
+        for (int col = 0; col < c->width; col++) {
+            int px = c->x - c->xhot + col;
+            if (px < 0 || px >= sw) continue;
+            unsigned src = c->pixels[r * c->width + col], a = src >> 24;
+            unsigned char *dst = (unsigned char *)shot->data + py * shot->bytes_per_line + px * 4;
+            for (int i = 0; i < 3; i++)
+                dst[i] = ((src >> (8 * i)) & 0xff) + dst[i] * (255 - a) / 255;
+        }
+    }
+    XFree(c);
+}
+
+static Window frozen(void) {
+    Pixmap pm = XCreatePixmap(dpy, root, sw, sh, DefaultDepth(dpy, DefaultScreen(dpy)));
+    XPutImage(dpy, pm, DefaultGC(dpy, DefaultScreen(dpy)), shot, 0, 0, 0, 0, sw, sh);
+    Window win = window(0);
+    XSetWindowBackgroundPixmap(dpy, win, pm);
+    XFreePixmap(dpy, pm);
+    XShapeCombineMask(dpy, win, ShapeBounding, 0, 0, None, ShapeSet);
+    XClearWindow(dpy, win);
     return win;
 }
 
@@ -54,6 +84,8 @@ static int select_region(void) {
     Pixmap pm = XCreateBitmapFromData(dpy, root, &none, 1, 1);
     Cursor cur = XCreatePixmapCursor(dpy, pm, pm, &black, &black, 0, 0);
     XFreePixmap(dpy, pm);
+    freeze = frozen();
+    XSync(dpy, False);
     if (XGrabPointer(dpy, root, False, ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
                      GrabModeAsync, GrabModeAsync, root, cur, CurrentTime) != GrabSuccess) return 1;
     XGrabKeyboard(dpy, root, False, GrabModeAsync, GrabModeAsync, CurrentTime);
@@ -97,11 +129,11 @@ static int select_region(void) {
     }
 
     XDestroyWindow(dpy, guide);
+    XDestroyWindow(dpy, freeze);
     XUngrabPointer(dpy, CurrentTime);
     XUngrabKeyboard(dpy, CurrentTime);
     XFreeCursor(dpy, cur);
     XSync(dpy, False);
-    usleep(50000); // let apps repaint old pixels before capture
     if (cancel) return 1;
 
     if (w < 8 && h < 8) {
@@ -111,13 +143,14 @@ static int select_region(void) {
         h = uh + 2*bw;
         outline();
     }
-    return !w || !h;
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > sw) w = sw - x;
+    if (y + h > sh) h = sh - y;
+    return w <= 0 || h <= 0;
 }
 
 static int deliver(void) {
-    XImage *img = XGetImage(dpy, root, x, y, w, h, AllPlanes, ZPixmap);
-    if (!img || img->bits_per_pixel != 32) return 1;
-
     char cmd[256];
     snprintf(cmd, sizeof cmd, "ffmpeg -loglevel error -f rawvideo -pix_fmt bgr0 -video_size %dx%d -i -"
              " -frames:v 1 -c:v png -f image2pipe -"
@@ -125,8 +158,7 @@ static int deliver(void) {
     FILE *p = popen(cmd, "w");
     if (!p) return 1;
     for (int r = 0; r < h; r++)
-        fwrite(img->data + r * img->bytes_per_line, 4, w, p);
-    XDestroyImage(img);
+        fwrite(shot->data + (y + r) * shot->bytes_per_line + x * 4, 4, w, p);
     return pclose(p) != 0;
 }
 
@@ -139,6 +171,9 @@ int main(void) {
     sw = DisplayWidth(dpy, DefaultScreen(dpy));
     sh = DisplayHeight(dpy, DefaultScreen(dpy));
 
+    shot = XGetImage(dpy, root, 0, 0, sw, sh, AllPlanes, ZPixmap);
+    if (!shot || shot->bits_per_pixel != 32) return 1;
+    draw_cursor();
     if (select_region()) return 1;
     return deliver();
 }
