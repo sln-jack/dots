@@ -38,6 +38,7 @@ abbr -a gcd git branch -D
 abbr -a gba git branch -a
 abbr -a gd git diff
 abbr -a gds git diff --staged
+abbr -a gdc git show --ext-diff
 abbr -a ga git add
 abbr -a gr git reset --hard
 abbr -a gr1 git reset --hard HEAD~1

@@ -345,11 +345,9 @@ def nvim(d: Path, v: str):
     extract(f"https://github.com/neovim/neovim/releases/download/v{v}/nvim-{tag}.tar.gz", WORK)
     sh(f'mv {WORK}/nvim-{tag}/* {d}')
 
-@pkg()
+@pkg(deps={'rust'})
 def tree_sitter(d: Path, v: str):
-    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
-    extract(f'https://github.com/tree-sitter/tree-sitter/releases/download/v{v}/tree-sitter-cli-{tag}.zip', WORK/'tree-sitter')
-    install(WORK/'tree-sitter/tree-sitter', d)
+    build_cargo(d, v, 'tree-sitter-cli')
 
 @pkg()
 def uv(d: Path, v: str):
@@ -481,6 +479,30 @@ def ripgrep(d: Path, v: str):
 def fd(d: Path, v: str):
     extract(f'https://github.com/sharkdp/fd/releases/download/v{v}/fd-v{v}-{triple}.tar.gz', WORK)
     install(WORK/f'fd-v{v}-{triple}/fd', d)
+
+@pkg(deps={'rust'})
+def difftastic(d: Path, v: str):
+    extract(f'https://github.com/Wilfred/difftastic/archive/refs/tags/{v}.tar.gz', WORK)
+    src = WORK/f'difftastic-{v}'
+
+    # Patch out DEFAULT_PARSE_ERROR_LIMIT, to keep diffing through ERROR nodes (common in c++).
+    options = src/'src/options.rs'
+    default_limit = 'DEFAULT_PARSE_ERROR_LIMIT: usize = 0;'
+    assert default_limit in options.read_text()
+    options.write_text(options.read_text().replace(default_limit, 'DEFAULT_PARSE_ERROR_LIMIT: usize = usize::MAX;'))
+
+    # Gray comments instead of bright blue
+    style = src/'src/display/style.rs'
+    comment_color = 'style.bright_blue()'
+    assert style.read_text().count(comment_color) == 1
+    style.write_text(style.read_text().replace(comment_color, 'style.bright_black()'))
+
+    # Use our tree-sitter-cpp fork which fixes parsing of `"x=%" PRIu64 ""`
+    with open(src/'Cargo.toml', 'a') as f:
+        f.write('\n[workspace]\n\n[patch.crates-io]\ntree-sitter-cpp = { git = "https://github.com/sln-jack/tree-sitter-cpp" }\n')
+
+    rust = PKGS/'rust'
+    sh(f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo install --path {src} --root {d}')
 
 @pkg()
 def sd(d: Path, v: str):
@@ -769,6 +791,7 @@ if __name__ == '__main__':
     eza('0.23.4')
     fd('10.3.0')
     sd('1.0.0')
+    difftastic('0.71.0')
     dust('1.2.4')
     dua('2.32.2')
     zstd('1.5.7')

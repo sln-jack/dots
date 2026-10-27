@@ -18,6 +18,9 @@
     # detect when files are renamed
     renames = true
 
+    # use difftastic (override with --no-ext-diff)
+    external = difft
+
 [push]
     # No more --set-upstream dance
     autoSetupRemote = true
