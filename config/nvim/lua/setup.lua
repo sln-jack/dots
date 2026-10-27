@@ -116,80 +116,73 @@ local plugins = {
     },
     lazy = false,
     build = ':TSUpdate',
-    main = 'nvim-treesitter.config',
-    opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      auto_install = true,
-      highlight = { enable = true },
-      indent = { enable = true },
-      textobjects = {
+    config = function()
+      local ts = require('nvim-treesitter')
+      ts.install({ 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' })
+
+      local function start(buf, lang)
+        if pcall(vim.treesitter.start, buf, lang) then
+          vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+        end
+      end
+
+      -- Highlight and indent with treesitter wherever a parser exists, installing it on first use
+      vim.api.nvim_create_autocmd('FileType', {
+        callback = function(args)
+          local lang = vim.treesitter.language.get_lang(args.match)
+          if not lang then return end
+
+          if vim.list_contains(ts.get_installed('parsers'), lang) then
+            start(args.buf, lang)
+          elseif vim.list_contains(ts.get_available(), lang) then
+            ts.install(lang):await(function(err)
+              if err then return end
+              vim.schedule(function()
+                if vim.api.nvim_buf_is_valid(args.buf) then
+                  start(args.buf, lang)
+                end
+              end)
+            end)
+          end
+        end,
+      })
+
+      local linewise = { ['function'] = true, class = true, block = true }
+      require('nvim-treesitter-textobjects').setup({
         select = {
-          enable = true,
           lookahead = true,
-          keymaps = {
-            ['af'] = '@function.outer',
-            ['if'] = '@function.inner',
-
-            ['as'] = '@class.outer',
-            ['is'] = '@class.inner',
-
-            ['ab'] = '@block.outer',
-            ['ib'] = '@block.inner',
-
-            ['ac'] = '@call.outer',
-            ['ic'] = '@call.inner',
-
-            ['ap'] = '@parameter.outer',
-            ['ip'] = '@parameter.inner',
-
-            ['al'] = '@assignment.lhs',
-            ['il'] = '@assignment.lhs',
-
-            ['ar'] = '@assignment.rhs',
-            ['ir'] = '@assignment.rhs',
-          },
-          selection_modes = {
-            ['@function.inner'] = 'V',
-            ['@function.outer'] = 'V',
-            ['@block.inner'] = 'V',
-            ['@block.outer'] = 'V',
-            ['@class.inner'] = 'V',
-            ['@class.outer'] = 'V',
-          },
+          selection_modes = function(opts) return linewise[opts.query_string:match('^@(%a+)')] and 'V' or 'v' end,
         },
-        move = {
-          enable = true,
-          set_jumps = true,
-          goto_next_start = {
-            [']f'] = '@function.outer',
-            [']s'] = '@class.outer',
-            [']b'] = '@block.inner',
-          },
-          goto_previous_start = {
-            ['[f'] = '@function.outer',
-            ['[s'] = '@class.outer',
-            ['[b'] = '@block.inner',
-          },
-        },
-        swap = {
-          enable = true,
-          swap_next = {
-            ['\\]'] = '@parameter.inner',
-          },
-          swap_previous = {
-            ['\\['] = '@parameter.inner',
-          },
-        },
-        lsp_interop = {
-          enable = true,
-          border = 'none',
-          floating_preview_opts = {},
-          peek_definition_code = {
-            ["\\p"] = "@class.outer",
-          },
-        },
-      },
-    },
+      })
+
+      local select = require('nvim-treesitter-textobjects.select')
+      local function map_select(keys, query)
+        vim.keymap.set({ 'x', 'o' }, keys, function() select.select_textobject(query, 'textobjects') end)
+      end
+      for key, object in pairs({ f = 'function', s = 'class', b = 'block', c = 'call', p = 'parameter' }) do
+        map_select('a' .. key, '@' .. object .. '.outer')
+        map_select('i' .. key, '@' .. object .. '.inner')
+      end
+      for key, side in pairs({ l = 'lhs', r = 'rhs' }) do
+        map_select('a' .. key, '@assignment.' .. side)
+        map_select('i' .. key, '@assignment.' .. side)
+      end
+
+      local move = require('nvim-treesitter-textobjects.move')
+      local moves = {
+        ['f'] = '@function.outer',
+        ['s'] = '@class.outer',
+        ['b'] = '@block.inner',
+      }
+      for key, query in pairs(moves) do
+        vim.keymap.set({ 'n', 'x', 'o' }, ']' .. key, function() move.goto_next_start(query, 'textobjects') end)
+        vim.keymap.set({ 'n', 'x', 'o' }, '[' .. key, function() move.goto_previous_start(query, 'textobjects') end)
+      end
+
+      local swap = require('nvim-treesitter-textobjects.swap')
+      vim.keymap.set('n', '\\]', function() swap.swap_next('@parameter.inner') end)
+      vim.keymap.set('n', '\\[', function() swap.swap_previous('@parameter.inner') end)
+    end,
   },
 
   -- LSP
