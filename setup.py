@@ -372,13 +372,6 @@ def claude(d: Path, v: str):
     sh(f'chmod +x {dest}/claude')
 
 @pkg()
-def sqlcmd(d: Path, v: str):
-    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
-    sh(f'mkdir -p {d}/bin')
-    extract(f'https://github.com/microsoft/go-sqlcmd/releases/download/v{v}/sqlcmd-{tag}.tar.bz2', d/'bin')
-    sh(f'rm -f {d}/bin/sqlcmd_debug {d}/bin/NOTICE.md')
-
-@pkg()
 def usql(d: Path, v: str):
     name, tag = {('linux','x86_64'):('usql_static', 'linux-amd64'), ('darwin','arm64'):('usql', 'darwin-arm64')}[(sys, arch)]
     extract(f'https://github.com/xo/usql/releases/download/v{v}/{name}-{v}-{tag}.tar.bz2', WORK/'usql')
@@ -831,7 +824,6 @@ if __name__ == '__main__':
     # DB
     postgres('18.3')
     sqlx_cli('0.9.0')
-    sqlcmd('1.10.0')
     usql('0.21.6')
     duckdb('1.4.4')
     influx('2.8.0')
