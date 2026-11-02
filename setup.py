@@ -598,7 +598,7 @@ def wireshark(d: Path, v: str):
         WORK/f'wireshark-{v}', d,
         f'-DCMAKE_C_FLAGS="-I{libpcap}/include" -DCMAKE_EXE_LINKER_FLAGS="-L{libpcap}/lib"',
         '-DENABLE_PLUGINS=OFF',
-        '-DENABLE_LUA=OFF',
+        '-DFETCH_lua=ON',
         '-DENABLE_NETLINK=OFF',
         '-DENABLE_KERBEROS=OFF',
         '-DENABLE_SBC=OFF',
