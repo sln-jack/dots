@@ -379,6 +379,12 @@ def sqlcmd(d: Path, v: str):
     sh(f'rm -f {d}/bin/sqlcmd_debug {d}/bin/NOTICE.md')
 
 @pkg()
+def usql(d: Path, v: str):
+    name, tag = {('linux','x86_64'):('usql_static', 'linux-amd64'), ('darwin','arm64'):('usql', 'darwin-arm64')}[(sys, arch)]
+    extract(f'https://github.com/xo/usql/releases/download/v{v}/{name}-{v}-{tag}.tar.bz2', WORK/'usql')
+    install(WORK/f'usql/{name}', d, rename='usql')
+
+@pkg()
 def duckdb(d: Path, v: str):
     tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'osx-universal'}[(sys, arch)]
     sh(f'mkdir {d}/bin')
@@ -826,6 +832,7 @@ if __name__ == '__main__':
     postgres('18.3')
     sqlx_cli('0.9.0')
     sqlcmd('1.10.0')
+    usql('0.21.6')
     duckdb('1.4.4')
     influx('2.8.0')
 
