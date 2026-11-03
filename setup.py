@@ -247,7 +247,7 @@ def clang(d: Path, v: str):
         '-DLLVM_INCLUDE_EXAMPLES=OFF',
         '-DLLVM_INCLUDE_TESTS=OFF',
         use_clang=False,
-        targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'clang-resource-headers', 'clangd'],
+        targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'llvm-mca', 'clang-resource-headers', 'clangd'],
         #targets=['lld', 'clang', 'llvm-ar', 'llvm-ranlib', 'clang-resource-headers', 'clangd', 'runtimes'],
     )
 
