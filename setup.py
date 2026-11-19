@@ -818,7 +818,7 @@ if __name__ == '__main__':
     if role('dev'): systemd_lsp('v2026.08.03')
     # AI
     codex('0.170.0')
-    claude('2.1.281')
+    claude('2.1.328')
     # Cloud
     if sys == 'linux': aws('1.46.1')
     # DB
