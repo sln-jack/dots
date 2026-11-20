@@ -1,0 +1,10 @@
+[Unit]
+Description=AirPods daemon
+After=pipewire.service wireplumber.service
+
+[Service]
+ExecStart=%h/.jack/prefix/bin/airpods daemon
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

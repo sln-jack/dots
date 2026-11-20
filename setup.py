@@ -138,10 +138,11 @@ def build_meson(src: Path, prefix: Path, *args, env: str = ''):
     sh(f'{meson} compile -C build', cwd=src)
     sh(f'{meson} install -C build', cwd=src)
 
-def build_cargo(d: Path, v: str, crate: str, git: str = None, features: list = [], locked: bool = True, env: str = ''):
+def build_cargo(d: Path, v: str, crate: str, git: str = None, branch: str = None, features: list = [], locked: bool = True, env: str = ''):
     rust = PKGS/'rust'
     cargo = f'RUSTUP_HOME={rust}/rustup CARGO_HOME={CACHE}/cargo PATH="{rust}/bin:$PATH" cargo'
-    src = f'--git {git} --tag {v}' if git else f'{crate}@{v}'
+    ref = f'--branch {branch}' if branch else f'--tag {v}'
+    src = f'--git {git} {ref}' if git else f'{crate}@{v}'
     features = f'--no-default-features --features {",".join(features)}' if features else ''
     locked = '--locked' if locked else ''
     sh(f'{env} {cargo} install {src} {features} {locked} --root {d}')
@@ -707,6 +708,13 @@ def stt(d: Path, v: str):
     sh(f'mkdir -p {d}/bin && {PKGS}/clang/bin/clang -O2 -o {d}/bin/stt {ROOT}/files/stt.c'
        f' -I{t}/include -L{t}/lib64 {libs} -lvulkan -lX11 -lXext -lXinerama -l:libXtst.so.6 -lstdc++ -lm -lpthread -ldl')
 
+@pkg(deps={'rust'})
+def airpods(d: Path, v: str):
+    # WARNING: impure, links host pipewire, fdk-aac, dbus. Prefix pkgconf shadows host pkg-config.
+    system = '/usr/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/share/pkgconfig'
+    build_cargo(d, v, 'airpods', git='https://github.com/sln-jack/airpods', branch='main', env=f'PKG_CONFIG_PATH="{system}"')
+    sh('systemctl --user try-restart airpods.service || true') # not installed yet on first build
+
 @pkg()
 def zen(d: Path, v: str):
     extract(f'https://github.com/zen-browser/desktop/releases/download/{v}/zen.linux-x86_64.tar.xz', WORK)
@@ -848,6 +856,7 @@ if __name__ == '__main__':
             transcribe('0.4.1')
             parakeet('843b1b175ace04f5a89d379c79e2518c0d065b25')
             stt('1.0')
+            airpods('0.1.0')
 
         # X11 Windowing
         dwm('6.6')
@@ -947,6 +956,10 @@ if __name__ == '__main__':
         conf('aerospace.toml', 'aerospace/aerospace.toml')
     if DEST == ROOT:
         sh(f'ln -s ~/.config/* {OUT}/config/ 2>/dev/null || true')
+
+    # Services
+    if sys == 'linux' and role('desktop') and DEST == ROOT:
+        sh(f'systemctl --user enable --now {ROOT}/files/airpods.service')
 
     print('Cleaning up...')
     # sh(f'rm -rf {WORK}/*')
