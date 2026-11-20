@@ -559,6 +559,54 @@ F.git = {
     require('neogit').open(opts or {})
   end),
 
+  -- Toggle a diffview of index vs working tree; also closes any other diffview tab.
+  review = lazy(function()
+    if require('diffview.lib').get_current_view() then
+      vim.cmd('DiffviewClose')
+    else
+      vim.cmd('DiffviewOpen')
+    end
+  end),
+
+  -- Commits that touched the current file, newest first.
+  history = lazy(function()
+    vim.cmd('DiffviewFileHistory %')
+  end),
+
+  -- Stage the hunk under the cursor, or the selected lines in visual mode.
+  stage_hunk = lazy(function()
+    local range
+    if vim.fn.mode():match('^[vV\22]') then
+      range = { vim.fn.line('.'), vim.fn.line('v') }
+      vim.cmd('normal! \27')
+    end
+    require('gitsigns').stage_hunk(range)
+  end),
+
+  blame = lazy(function()
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == 'gitsigns-blame' then
+        return vim.api.nvim_win_close(win, true)
+      end
+    end
+    require('gitsigns').blame()
+  end),
+
+  -- From the blame window: open the commit that last touched this line in diffview.
+  blame_commit = lazy(function()
+    local source = vim.api.nvim_win_get_buf(vim.fn.win_getid(vim.fn.winnr('l')))
+    local cache = require('gitsigns.cache').cache[source]
+    local entry = cache and cache.blame and cache.blame.entries[vim.fn.line('.')]
+    if not entry or entry.commit.sha:match('^0+$') then
+      return vim.notify('No commit for this line')
+    end
+    vim.cmd(('DiffviewOpen %s^! -C%s --selected-file=%s'):format(
+      entry.commit.sha,
+      vim.fn.fnameescape(cache.git_obj.repo.toplevel),
+      vim.fn.fnameescape(entry.filename)
+    ))
+  end),
+
   permalink = lazy(function(opts)
     opts = opts or {}
 
@@ -612,6 +660,7 @@ F.git = {
 --   F.when({lang = 'cpp'}, F.lsp.definition())
 --   F.when({lang = {'cpp', 'rust'}}, F.shell('make'))
 --   F.when({buffer = 'help'}, function() vim.cmd('q') end)
+--   F.when({lang = 'x', defer = true}, ...) binds after the plugin's own buffer maps, to override them
 F.when = function(cond, action)
   return setmetatable({}, {
     __call = action,
@@ -717,7 +766,12 @@ local function setup_project(state, init, config)
             if cond.buffer and vim.bo[ev.buf].buftype ~= cond.buffer then
               return
             end
-            vim.keymap.set(modes, key, action, { buffer = ev.buf, silent = true, desc = desc })
+            local function set()
+              if vim.api.nvim_buf_is_valid(ev.buf) then
+                vim.keymap.set(modes, key, action, { buffer = ev.buf, silent = true, desc = desc })
+              end
+            end
+            if cond.defer then vim.schedule(set) else set() end
           end,
         })
         table.insert(project.autocmds, autocmd)

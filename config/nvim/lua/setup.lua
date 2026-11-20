@@ -385,6 +385,10 @@ local plugins = {
   -- Git
   { 'lewis6991/gitsigns.nvim', opts = {} },
   {
+    'sindrets/diffview.nvim',
+    opts = { file_history_panel = { win_config = { position = 'left', width = 60 } } },
+  },
+  {
     "NeogitOrg/neogit",
     dependencies = {
       "nvim-lua/plenary.nvim",
@@ -634,6 +638,7 @@ M.setup = function()
   M.setup_vim()
   M.setup_languages()
   require('lazy').setup(plugins)
+  require('difft_overlay').setup()
 end
 
 return M

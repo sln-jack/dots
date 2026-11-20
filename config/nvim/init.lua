@@ -37,6 +37,13 @@ F.setup {
       [{'Git log',    '<main>gl'}] = F.git.ui.with({'log'}),
       [{'Git diff',   '<main>gd'}] = F.git.ui.with({'diff'}),
 
+      [{'Git review',  '<main>gr'}] = F.git.review,
+      [{'Git history', '<main>gh'}] = F.git.history,
+      [{'Git blame',   '<main>gb'}] = F.git.blame,
+      [{'Stage hunk',  {'n','v'}, '<main>ga'}] = F.git.stage_hunk,
+      [{'AST overlay', '<main>go'}] = F.cmd.with(':DifftOverlay'),
+      [{'Blame: open commit', '<cr>'}] = F.when({lang = 'gitsigns-blame', defer = true}, F.git.blame_commit.with()),
+
       -------- Files -------------------------------------------------------------------------------------------
 
       [{'Find file',     '<main>f'}] = F.pick.file.with({ dir = F.project.nearest }),
