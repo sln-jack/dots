@@ -464,6 +464,12 @@ def eza(d: Path, v: str):
     build_cargo(d, v, 'eza')
 
 @pkg()
+def jq(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-amd64', ('darwin','arm64'):'macos-arm64'}[(sys, arch)]
+    sh(f'curl -L https://github.com/jqlang/jq/releases/download/jq-{v}/jq-{tag} -o {WORK}/jq')
+    install(WORK/'jq', d)
+
+@pkg()
 def fzf(d: Path, v: str):
     tag = {('linux','x86_64'):'linux_amd64', ('darwin','arm64'):'darwin_arm64'}[(sys, arch)]
     extract(f'https://github.com/junegunn/fzf/releases/download/v{v}/fzf-{v}-{tag}.tar.gz', WORK)
@@ -834,6 +840,7 @@ if __name__ == '__main__':
     sqlx_cli('0.9.0')
     usql('0.21.6')
     duckdb('1.4.4')
+    jq('1.8.2')
     influx('2.8.0')
 
     # Networking
