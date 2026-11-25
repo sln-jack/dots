@@ -770,7 +770,7 @@ if __name__ == '__main__':
         cmake('3.31.9')
         meson('1.9.2')
         rust('nightly')
-        node('24.12.0')
+        node('24.22.3')
         bun('1.3.9')
         zig('0.16.0')
         python('3.14.4')
