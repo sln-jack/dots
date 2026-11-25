@@ -372,6 +372,13 @@ def claude(d: Path, v: str):
     sh(f'curl -Lo {dest}/claude https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{v}/{tag}/claude')
     sh(f'chmod +x {dest}/claude')
 
+# See https://github.com/earendil-works/pi/releases
+@pkg()
+def pi(d: Path, v: str):
+    tag = {('linux','x86_64'):'linux-x64', ('darwin','arm64'):'darwin-arm64'}[(sys, arch)]
+    extract(f'https://github.com/earendil-works/pi/releases/download/v{v}/pi-{tag}.tar.gz', d)
+    sh(f'mkdir -p {d}/bin && ln -sf ../pi/pi {d}/bin/pi')
+
 @pkg()
 def usql(d: Path, v: str):
     name, tag = {('linux','x86_64'):('usql_static', 'linux-amd64'), ('darwin','arm64'):('usql', 'darwin-arm64')}[(sys, arch)]
@@ -833,6 +840,7 @@ if __name__ == '__main__':
     # AI
     codex('0.170.0')
     claude('2.1.328')
+    if role('dev'): pi('1.6.1')
     # Cloud
     if sys == 'linux': aws('1.46.1')
     # DB
@@ -937,12 +945,12 @@ if __name__ == '__main__':
         '    site.addsitedir(f"{here}/site-packages")\n'
     )
     # Config
-    def conf(src_name, dst_name=None):
+    def conf(src_name, dst_name=None, base=OUT/'config'):
         target = DEST/'config'/src_name
-        link = OUT/'config'/(dst_name or src_name)
+        link = base/(dst_name or src_name)
         rel = os.path.relpath(target, link.parent)
         sh(f'mkdir -p {link.parent}')
-        sh(f'ln -sf {rel} {link}')
+        sh(f'ln -sfn {rel} {link}')
 
     sh(f'rm -rf {OUT}/config && mkdir {OUT}/config')
     conf('git')
@@ -961,6 +969,11 @@ if __name__ == '__main__':
         conf('fish/macos.fish', 'fish/conf.d/macos.fish')
         conf('ghostty.conf', 'ghostty/config')
         conf('aerospace.toml', 'aerospace/aerospace.toml')
+    if 'pi' in PLAN:
+        tracked = DEST/'config'/'pi'
+        sh(f'mkdir -p {tracked}/{{extensions,skills,prompts,themes}}')
+        for p in sorted(tracked.iterdir()):
+            conf(f'pi/{p.name}', base=OUT/'share')
     if DEST == ROOT:
         sh(f'ln -s ~/.config/* {OUT}/config/ 2>/dev/null || true')
 
