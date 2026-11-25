@@ -126,15 +126,28 @@ function utc
     TZ=UTC date +"%Y%m%d-%H:%M:%S.%6N"
 end
 
+function kill_arg -a direction
+    set -l word '[^\s=\'"]*[\s=\'"]*'
+    set -l left "$(commandline -c)"
+    set -l right "$(string sub -s (math (string length -- $left) + 1) -- "$(commandline)")"
+    if test $direction = backward
+        set left "$(string replace -r "$word\$" '' -- $left)"
+    else
+        set right "$(string replace -r "^$word" '' -- $right)"
+    end
+    commandline -r -- $left$right
+    commandline -C (string length -- $left)
+end
+
 function fish_user_key_bindings
     # Shift-{Tab,Enter}: accept autosuggestion {,and run}
     bind shift-tab   'commandline -f accept-autosuggestion'
     bind shift-enter 'commandline -f accept-autosuggestion execute'
 
-    # Ctrl-Backspace/Del: delete word
-    bind ctrl-delete    forward-kill-word
-    bind ctrl-backspace backward-kill-word
-    bind ctrl-h         backward-kill-word # Tmux
+    # Ctrl-Backspace/Del: delete word, splitting on whitespace, equals, quotes
+    bind ctrl-delete    'kill_arg forward'
+    bind ctrl-backspace 'kill_arg backward'
+
     # Colon: expand abbrs like space
     bind ':' 'commandline -f expand-abbr; commandline -i :'
 end
